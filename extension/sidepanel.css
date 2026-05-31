@@ -384,9 +384,8 @@ body {
 .settings-section-head p { margin: 1px 0 0; color: var(--muted); font-size: 11.5px; }
 .focus-head-actions { display: flex; gap: 6px; flex: none; }
 .settings-panel {
-  margin: 0; padding: 6px;
-  border: 1px solid var(--line-soft); border-radius: var(--r-md);
-  background: var(--surface-2);
+  margin: 0; padding: 0;
+  background: transparent;
 }
 .custom-focus-list {
   display: grid; gap: 6px;
