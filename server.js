@@ -56,10 +56,13 @@ app.use((req, res, next) => {
 /* ====================================================================== */
 
 const LENGTH = {
-  kurz:   { words: 'ca. 80–120 Wörter',   detail: 'nur die wichtigsten Kernpunkte' },
-  mittel: { words: 'ca. 180–260 Wörter',  detail: 'die zentralen Aussagen mit etwas Kontext' },
-  lang:   { words: 'ca. 400–550 Wörter',  detail: 'umfassend, inklusive relevanter Details und Beispiele' },
+  kurz:   { words: 'ca. 80–120 Wörter',   detail: 'nur die wichtigsten Kernpunkte', maxWords: 120 },
+  mittel: { words: 'ca. 180–260 Wörter',  detail: 'die zentralen Aussagen mit etwas Kontext', maxWords: 260 },
+  lang:   { words: 'ca. 400–550 Wörter',  detail: 'umfassend, inklusive relevanter Details und Beispiele', maxWords: 550 },
 };
+
+const LENGTH_RATIO = { kurz: 0.25, mittel: 0.4, lang: 0.6 };
+const LENGTH_MIN = { kurz: 6, mittel: 10, lang: 14 };
 
 const BUILTIN_FOCUS = new Set(['ueberblick', 'zahlen', 'procontra']);
 
@@ -117,6 +120,31 @@ function plainClause() {
   return renderPrompt('partials/plain.mustache');
 }
 
+function countWords(text = '') {
+  return String(text).trim().split(/\s+/).filter(Boolean).length;
+}
+
+function lengthForSource(length, sourceWords) {
+  const fallback = LENGTH[length] || LENGTH.mittel;
+  if (!sourceWords) return fallback;
+  const mode = LENGTH[length] ? length : 'mittel';
+  const maxByRatio = Math.floor(sourceWords * LENGTH_RATIO[mode]);
+  const rawMaxWords = Math.max(LENGTH_MIN[mode], maxByRatio);
+  const maxWords = Math.max(4, Math.min(fallback.maxWords, rawMaxWords, sourceWords - 1));
+  const oneLine = sourceWords <= 80;
+  const detail = oneLine
+    ? 'verdichte den Inhalt deutlich; keine Überschriften, kein TL;DR, keine Tabellen, keine zusätzlichen Beispiele'
+    : `${fallback.detail}; bleibe deutlich kürzer als der Ausgangstext`;
+  return {
+    words: `maximal ${maxWords} Wörter`,
+    detail,
+    maxWords,
+    formatHint: oneLine
+      ? 'Gib nur einen kurzen Satz oder wenige knappe Stichpunkte aus. Baue keine Struktur aus Überschriften, TL;DR oder Abschnitten.'
+      : 'Falls Stil-Regeln mehr Struktur verlangen, kürze die Struktur so weit, dass die maximale Wortzahl eingehalten wird.',
+  };
+}
+
 function buildSystem({ fokus, customFocus, plain, zielsprache }) {
   const cleanCustomFocus = String(customFocus || '').trim().slice(0, 1800);
   const focusBlock = cleanCustomFocus
@@ -130,8 +158,8 @@ function buildSystem({ fokus, customFocus, plain, zielsprache }) {
   });
 }
 
-function buildInstruction({ length, title, url, kind }) {
-  const L = LENGTH[length] || LENGTH.mittel;
+function buildInstruction({ length, title, url, kind, sourceWords = 0 }) {
+  const L = lengthForSource(length, sourceWords);
   const kindInstruction =
     kind === 'video'     ? 'Fasse das oben verlinkte Video zusammen.' :
     kind === 'pdf'       ? 'Fasse das oben angehängte PDF zusammen.' :
@@ -141,6 +169,8 @@ function buildInstruction({ length, title, url, kind }) {
     kindInstruction,
     words: L.words,
     detail: L.detail,
+    formatHint: L.formatHint || '',
+    sourceWords: sourceWords ? sourceWords.toLocaleString('de-DE') : '',
     title,
     url,
   });
@@ -164,11 +194,15 @@ function isPdfUrl(url = '') {
 /** Baut das messages-Array; wählt Modell anhand des Inhaltstyps. */
 function buildMessages({ kind, text, url, title, length, fokus, customFocus, plain, zielsprache }) {
   const system = buildSystem({ fokus, customFocus, plain, zielsprache });
-  const instruction = buildInstruction({ length, title, url, kind });
+  const sourceWords = (kind === 'text' || kind === 'selection') ? countWords(text) : 0;
+  const lengthTarget = lengthForSource(length, sourceWords);
+  const instruction = buildInstruction({ length, title, url, kind, sourceWords });
+  const maxTokens = lengthTarget.maxWords ? Math.max(32, Math.ceil(lengthTarget.maxWords * 2.5) + 20) : 2048;
 
   if (kind === 'video') {
     return {
       model: VIDEO_MODEL,
+      max_tokens: maxTokens,
       messages: [
         { role: 'system', content: system },
         {
@@ -185,6 +219,7 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
   if (kind === 'pdf') {
     return {
       model: PDF_MODEL,
+      max_tokens: maxTokens,
       messages: [
         { role: 'system', content: system },
         {
@@ -206,6 +241,7 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
   const model = trimmed.length > 50000 ? LONG_MODEL : MODEL;
   return {
     model,
+    max_tokens: maxTokens,
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: `${wrapSource(trimmed)}\n\n---\n\n${instruction}` },
@@ -270,7 +306,10 @@ app.post('/api/summarize', async (req, res) => {
   }
 
   const text = String(b.text || '').trim();
-  if ((kind === 'text' || kind === 'selection') && text.length < 40) {
+  if (kind === 'text' && text.length < 40) {
+    return res.status(400).json({ error: 'Auf dieser Seite wurde zu wenig Text gefunden.' });
+  }
+  if (kind === 'selection' && text.length < 8) {
     return res.status(400).json({ error: 'Auf dieser Seite wurde zu wenig Text gefunden.' });
   }
   if ((kind === 'video' || kind === 'pdf') && !url) {

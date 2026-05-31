@@ -1,4 +1,5 @@
 const BACKEND = 'http://localhost:3000';
+const SUMMARY_CACHE_VERSION = 2;
 
 const els = {
   mainView: document.getElementById('mainView'),
@@ -381,6 +382,19 @@ function normalizeUrl(url = '') {
   } catch { return url || ''; }
 }
 
+function normalizeInlineText(text = '') {
+  return String(text).trim().replace(/\s+/g, ' ');
+}
+
+function textFingerprint(text = '') {
+  let hash = 0;
+  const clean = normalizeInlineText(text);
+  for (let i = 0; i < clean.length; i++) {
+    hash = ((hash << 5) - hash + clean.charCodeAt(i)) | 0;
+  }
+  return `${clean.length}:${(hash >>> 0).toString(36)}`;
+}
+
 function faviconFor(url) {
   try { const u = new URL(url); return `https://www.google.com/s2/favicons?sz=32&domain=${u.hostname}`; }
   catch { return ''; }
@@ -452,7 +466,9 @@ function cacheKey(extra = {}) {
   const focus = extra.fokus ?? prefs.fokus;
   const focusPoint = getFocusById(focus);
   return 'sum:' + JSON.stringify({
+    v: SUMMARY_CACHE_VERSION,
     u: normalizeUrl(page.url),
+    s: page.kind === 'selection' ? textFingerprint(page.text) : '',
     f: focus, c: focusPoint?.prompt || '',
     l: prefs.length, p: prefs.plain ? 1 : 0, z: targetLanguage(), k: page.kind,
   });
@@ -534,7 +550,8 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   const fokus = fokusOverride || prefs.fokus;
   const key = cacheKey({ fokus });
 
-  if ((page.kind === 'text' || page.kind === 'selection') && (!page.text || page.text.length < 40)) return;
+  if (page.kind === 'text' && (!page.text || page.text.length < 40)) return;
+  if (page.kind === 'selection' && (!page.text || page.text.length < 8)) return;
 
   clearError();
   stopTts();
@@ -601,6 +618,14 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   } finally {
     els.reloadBtn.classList.remove('spinning');
   }
+}
+
+async function summarizeCurrentPage({ force = true } = {}) {
+  if (page.kind === 'selection') {
+    const ok = await loadCurrentPage();
+    if (!ok) return;
+  }
+  await summarize({ force });
 }
 
 function showSummary(markdown, fokus, fromCache) {
@@ -918,7 +943,7 @@ els.fontSizeSeg.addEventListener('keydown', (e) => {
   els.fontSizeSeg.querySelector(`[data-size="${order[next]}"]`)?.focus();
 });
 
-els.reloadBtn.addEventListener('click', () => summarize({ force: true }));
+els.reloadBtn.addEventListener('click', () => summarizeCurrentPage({ force: true }));
 
 async function copyText(text) {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -1233,7 +1258,7 @@ chrome.tabs.onUpdated.addListener((id, info, tab) => {
 chrome.runtime.onMessage.addListener((msg) => {
   if (!msg || typeof msg !== 'object') return;
   if (msg.type === 'suntino:selection')  consumePendingSelection();
-  if (msg.type === 'suntino:regenerate') summarize({ force: true });
+  if (msg.type === 'suntino:regenerate') summarizeCurrentPage({ force: true });
   if (msg.type === 'suntino:toggle-tts') toggleTts();
 });
 
