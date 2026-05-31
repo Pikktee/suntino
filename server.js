@@ -56,9 +56,9 @@ app.use((req, res, next) => {
 /* ====================================================================== */
 
 const LENGTH = {
-  kurz:   { words: 'ca. 80–120 Wörter',   detail: 'nur die wichtigsten Kernpunkte', maxWords: 120 },
-  mittel: { words: 'ca. 180–260 Wörter',  detail: 'die zentralen Aussagen mit etwas Kontext', maxWords: 260 },
-  lang:   { words: 'ca. 400–550 Wörter',  detail: 'umfassend, inklusive relevanter Details und Beispiele', maxWords: 550 },
+  kurz:   { words: 'ca. 80–120 Wörter',   detail: 'nur die wichtigsten Kernpunkte', maxWords: 120, maxRows: 6 },
+  mittel: { words: 'ca. 180–260 Wörter',  detail: 'die zentralen Aussagen mit etwas Kontext', maxWords: 260, maxRows: 10 },
+  lang:   { words: 'ca. 400–550 Wörter',  detail: 'umfassend, inklusive relevanter Details und Beispiele', maxWords: 550, maxRows: 16 },
 };
 
 const LENGTH_RATIO = { kurz: 0.25, mittel: 0.4, lang: 0.6 };
@@ -137,10 +137,13 @@ function lengthForSource(length, sourceWords) {
   const detail = oneLine
     ? 'verdichte den Inhalt deutlich; keine Überschriften, kein TL;DR, keine Tabellen, keine zusätzlichen Beispiele'
     : `${fallback.detail}; bleibe deutlich kürzer als der Ausgangstext`;
+  // Zeilenobergrenze für Tabellen-Stile (keine Tabellen bei sehr kurzen Quellen).
+  const maxRows = oneLine ? 0 : (fallback.maxRows || LENGTH.mittel.maxRows);
   return {
     words: `maximal ${maxWords} Wörter`,
     detail,
     maxWords,
+    maxRows,
     formatHint: oneLine
       ? 'Gib nur einen kurzen Satz oder wenige knappe Stichpunkte aus. Baue keine Struktur aus Überschriften, TL;DR oder Abschnitten.'
       : 'Falls Stil-Regeln mehr Struktur verlangen, kürze die Struktur so weit, dass die maximale Wortzahl eingehalten wird.',
@@ -172,6 +175,7 @@ function buildInstruction({ length, title, url, kind, sourceWords = 0 }) {
     words: L.words,
     detail: L.detail,
     formatHint: L.formatHint || '',
+    maxRows: L.maxRows || '',
     sourceWords: sourceWords ? sourceWords.toLocaleString('de-DE') : '',
     title,
     url,
@@ -200,15 +204,23 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
   const lengthTarget = lengthForSource(length, sourceWords);
   const instruction = buildInstruction({ length, title, url, kind, sourceWords });
   // max_tokens ist nur eine Sicherheitsgrenze (die Länge steuert der Prompt).
-  // Tabellen-Stile (Zahlen & Fakten, Pro & Contra) brauchen deutlich mehr Tokens
-  // pro Wort, weil Markdown-Tabellen viel Syntax-Overhead haben (| , Trennzeile,
-  // Zahlen, Komposita). Sonst wird die Zusammenfassung mitten in einer Zeile
-  // abgeschnitten. Custom-Stile können ebenfalls Tabellen anfordern.
-  const tableStyle = TABLE_FOCUS.has(fokus) || Boolean(String(customFocus || '').trim());
-  const tokensPerWord = tableStyle ? 6 : 2.5;
-  const maxTokens = lengthTarget.maxWords
-    ? Math.max(256, Math.ceil(lengthTarget.maxWords * tokensPerWord) + 64)
-    : 2048;
+  // Tabellen-Stile begrenzen ihre Größe über die Zeilenanzahl (s. Prompt-Hinweis),
+  // nicht über die Wortzahl — Markdown-Tabellen haben viel Syntax-Overhead, und
+  // die Wortzahl bildet das nicht ab. Wir koppeln das Budget daher an maxRows,
+  // großzügig bemessen (jede Zeile darf lange Kontext-Zellen haben), damit die
+  // begrenzte Tabelle garantiert vollständig hineinpasst und nie mitten in einer
+  // Zeile abgeschnitten wird. Custom-Stile können ebenfalls Tabellen anfordern.
+  const hasCustom = Boolean(String(customFocus || '').trim());
+  let maxTokens;
+  if (TABLE_FOCUS.has(fokus)) {
+    const rows = lengthTarget.maxRows || LENGTH.mittel.maxRows;
+    maxTokens = Math.max(700, rows * 80 + 256);
+  } else if (hasCustom) {
+    // Könnte eine Tabelle sein → großzügiger als reiner Fließtext.
+    maxTokens = lengthTarget.maxWords ? Math.ceil(lengthTarget.maxWords * 5) + 256 : 2048;
+  } else {
+    maxTokens = lengthTarget.maxWords ? Math.max(256, Math.ceil(lengthTarget.maxWords * 2.5) + 64) : 2048;
+  }
 
   if (kind === 'video') {
     return {

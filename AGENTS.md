@@ -121,6 +121,15 @@ Default models live in `server.js:12-15` (NOT the README — the README is outda
 | PDF | `OPENROUTER_PDF_MODEL` | `google/gemini-2.5-flash` |
 | Long text (>50k chars) | `OPENROUTER_LONG_MODEL` | `google/gemini-2.5-pro` |
 
+## Summary length & token budget
+
+`LENGTH` (`server.js`) defines `maxWords` AND `maxRows` per length (kurz/mittel/lang). `max_tokens` (the API safety ceiling, NOT the length target — that lives in the prompt) is computed in `buildMessages`:
+- Table styles (`TABLE_FOCUS` = `zahlen`, `procontra`) base it on `maxRows` (`rows*80+256`), not words — Markdown tables have heavy syntax overhead that word count doesn't capture, so a word-based ceiling truncated tables mid-row.
+- Custom-focus styles (which may also emit tables) use a generous word multiplier (5×).
+- Plain text uses 2.5× words.
+
+Table size is bounded by an explicit row cap, not the word count: the length-aware row limit is injected into `instruction.mustache` (`maxRows`) and reinforced in the style prompts. This keeps "Zahlen & Fakten" a *selective* summary (esp. on overview/landing pages with dozens of figures) rather than an exhaustive dump that overflows `max_tokens`. The `max_tokens` budget is sized above the row cap so a compliant table always fits.
+
 ## Conventions
 
 - ES modules throughout (`"type": "module"`)
