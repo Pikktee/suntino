@@ -1,0 +1,45 @@
+<svg width="440" height="280" viewBox="0 0 440 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Suntino — Webseiten klar & kurz">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d5efc"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1e1b4b" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <!-- Hintergrund -->
+  <rect width="440" height="280" fill="#f6f5fb"/>
+  <!-- dezente Funken-Atmosphäre -->
+  <g fill="#fbbf24" opacity="0.12">
+    <path transform="translate(404 46) scale(2.4)" d="M0 -13 C2 -4 4 -2 13 0 C4 2 2 4 0 13 C-2 4 -4 2 -13 0 C-4 -2 -2 -4 0 -13 Z"/>
+  </g>
+  <g fill="#a5b4fc" opacity="0.14">
+    <path transform="translate(40 244) scale(1.5)" d="M0 -13 C2 -4 4 -2 13 0 C4 2 2 4 0 13 C-2 4 -4 2 -13 0 C-4 -2 -2 -4 0 -13 Z"/>
+  </g>
+
+  <!-- Maskottchen-Kachel (116px) -->
+  <g transform="translate(52 82) scale(0.90625)" filter="url(#cardShadow)">
+    <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#tile)"/>
+    <g transform="rotate(-5 64 65)">
+      <rect x="37" y="29" width="54" height="72" rx="11" fill="#ffffff"/>
+      <circle cx="55" cy="52" r="4.2" fill="#312e81"/>
+      <circle cx="73" cy="52" r="4.2" fill="#312e81"/>
+      <path d="M53 61 Q64 71 75 61" fill="none" stroke="#312e81" stroke-width="4" stroke-linecap="round"/>
+      <rect x="46" y="82" width="36" height="5.5" rx="2.75" fill="#a5b4fc"/>
+      <rect x="46" y="91" width="22" height="5.5" rx="2.75" fill="#c7d2fe"/>
+    </g>
+    <g transform="translate(95 31)">
+      <path d="M0 -13 C2 -4 4 -2 13 0 C4 2 2 4 0 13 C-2 4 -4 2 -13 0 C-4 -2 -2 -4 0 -13 Z" fill="#fbbf24"/>
+    </g>
+  </g>
+
+  <!-- Wortmarke + Claim -->
+  <g font-family="'Avenir Next','Avenir','Segoe UI',sans-serif">
+    <text x="190" y="150" font-size="52" font-weight="800" letter-spacing="-1">
+      <tspan fill="#1f2330">Sun</tspan><tspan fill="#4f46e5">tino</tspan>
+    </text>
+    <text x="192" y="178" font-size="15" font-weight="500" fill="#6b6b7b">Webseiten klar &amp; kurz.</text>
+  </g>
+</svg>

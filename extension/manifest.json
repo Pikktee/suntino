@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Suntino",
+  "version": "2.0.0",
+  "description": "Suntino fasst Webseiten, PDFs und YouTube-Videos strukturiert zusammen — mit Fokus-Wahl, Länge, Übersetzung, Vorlesen und Rückfragen.",
+  "action": {
+    "default_title": "Suntino — Seite zusammenfassen",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "permissions": ["scripting", "storage", "sidePanel", "activeTab", "clipboardWrite", "contextMenus", "downloads"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+S" },
+      "description": "Suntino-Seitenfenster öffnen"
+    },
+    "regenerate": {
+      "suggested_key": { "default": "Alt+R" },
+      "description": "Neu zusammenfassen"
+    },
+    "toggle-tts": {
+      "suggested_key": { "default": "Alt+V" },
+      "description": "Vorlesen starten / stoppen"
+    }
+  }
+}

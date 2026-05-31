@@ -1,0 +1,35 @@
+<svg width="520" height="180" viewBox="0 0 520 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Suntino">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d5efc"/>
+      <stop offset="1" stop-color="#4338ca"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#1e1b4b" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- Maskottchen-Kachel (wie das Icon), 120×120 bei (24,30) -->
+  <g transform="translate(24 30) scale(0.9375)">
+    <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#tile)"/>
+    <g transform="rotate(-5 64 65)" filter="url(#cardShadow)">
+      <rect x="37" y="29" width="54" height="72" rx="11" fill="#ffffff"/>
+      <circle cx="55" cy="52" r="4.2" fill="#312e81"/>
+      <circle cx="73" cy="52" r="4.2" fill="#312e81"/>
+      <path d="M53 61 Q64 71 75 61" fill="none" stroke="#312e81" stroke-width="4" stroke-linecap="round"/>
+      <rect x="46" y="82" width="36" height="5.5" rx="2.75" fill="#a5b4fc"/>
+      <rect x="46" y="91" width="22" height="5.5" rx="2.75" fill="#c7d2fe"/>
+    </g>
+    <g transform="translate(95 31)">
+      <path d="M0 -13 C2 -4 4 -2 13 0 C4 2 2 4 0 13 C-2 4 -4 2 -13 0 C-4 -2 -2 -4 0 -13 Z" fill="#fbbf24"/>
+    </g>
+  </g>
+
+  <!-- Wortmarke -->
+  <g font-family="'Avenir Next','Avenir','Segoe UI',sans-serif">
+    <text x="172" y="100" font-size="62" font-weight="800" letter-spacing="-1">
+      <tspan fill="#1f2330">Sun</tspan><tspan fill="#4f46e5">tino</tspan>
+    </text>
+    <text x="174" y="130" font-size="18" font-weight="500" fill="#6b6b7b">Webseiten klar &amp; kurz.</text>
+  </g>
+</svg>
