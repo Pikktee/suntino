@@ -406,8 +406,7 @@ function clearSummaryState() {
   els.summary.innerHTML = '';
   els.summaryScroll.scrollTop = 0;
   els.summary.removeAttribute('aria-busy');
-  els.summaryTools.hidden = true;
-  [els.copyBtn, els.downloadBtn, els.ttsBtn].forEach((b) => (b.hidden = true));
+  hideSummaryActions();
   resetQa();
   setQaReady(false);
   stopTts();
@@ -440,9 +439,8 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   currentMarkdown = '';
   els.reloadBtn.classList.add('spinning');
   els.result.hidden = false;
-  els.summaryTools.hidden = true;
+  hideSummaryActions();
   setQaReady(false);
-  [els.copyBtn, els.downloadBtn, els.ttsBtn].forEach((b) => (b.hidden = true));
   els.qa.hidden = true;
   els.summary.setAttribute('aria-busy', 'true');
   els.summary.innerHTML = '<div class="summary-loading"><span class="loading-spinner" aria-hidden="true"></span><span>Zusammenfassung wird erstellt...</span></div>';
@@ -479,7 +477,7 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
     els.summary.removeAttribute('aria-busy');
     els.summary.innerHTML = '';
     els.result.hidden = true;
-    els.summaryTools.hidden = true;
+    hideSummaryActions();
     setQaReady(false);
     showError(
       e.message.includes('Failed to fetch') || e.message.includes('nicht erreichbar')
@@ -502,11 +500,15 @@ function showSummary(markdown, fokus, fromCache) {
 }
 
 function showSummaryActions() {
-  els.summaryTools.hidden = false;
-  els.copyBtn.hidden = false;
-  els.downloadBtn.hidden = false;
   els.ttsBtn.hidden = false;
+  els.shareBtn.hidden = false;
   setQaReady(Boolean(currentMarkdown));
+}
+
+function hideSummaryActions() {
+  closeShareMenu();
+  els.ttsBtn.hidden = true;
+  els.shareBtn.hidden = true;
 }
 
 async function consumeSse(response, onDelta) {
@@ -700,7 +702,33 @@ async function copyText(text) {
   if (!ok) throw new Error('copy failed');
 }
 
+function openShareMenu() {
+  if (openDropdownKey) closeDropdown(openDropdownKey);
+  els.shareMenu.hidden = false;
+  els.shareBtn.setAttribute('aria-expanded', 'true');
+  document.addEventListener('click', onShareOutside, true);
+  document.addEventListener('keydown', onShareKey);
+}
+function closeShareMenu() {
+  if (els.shareMenu.hidden) return;
+  els.shareMenu.hidden = true;
+  els.shareBtn.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', onShareOutside, true);
+  document.removeEventListener('keydown', onShareKey);
+}
+function onShareOutside(e) {
+  if (!els.shareBtn.contains(e.target) && !els.shareMenu.contains(e.target)) closeShareMenu();
+}
+function onShareKey(e) {
+  if (e.key === 'Escape') { closeShareMenu(); els.shareBtn.focus(); }
+}
+
+els.shareBtn.addEventListener('click', () =>
+  els.shareMenu.hidden ? openShareMenu() : closeShareMenu()
+);
+
 els.copyBtn.addEventListener('click', async () => {
+  closeShareMenu();
   try {
     await copyText(currentMarkdown);
     clearError();
@@ -709,6 +737,7 @@ els.copyBtn.addEventListener('click', async () => {
 });
 
 els.downloadBtn.addEventListener('click', () => {
+  closeShareMenu();
   const filename = (page.title || 'zusammenfassung').replace(/[^\w\-]+/g, '_').slice(0, 80) + '.md';
   const blob = new Blob([currentMarkdown], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
@@ -721,16 +750,6 @@ els.downloadBtn.addEventListener('click', () => {
 });
 
 els.ttsBtn.addEventListener('click', toggleTts);
-
-document.querySelectorAll('.compact-field').forEach((field) => {
-  const select = field.querySelector('select');
-  if (!select) return;
-  field.addEventListener('click', (e) => {
-    if (e.target === select) return;
-    select.focus();
-    select.showPicker?.();
-  });
-});
 
 /* ====================================================================== */
 /* Fokus-Punkte                                                           */

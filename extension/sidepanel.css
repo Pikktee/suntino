@@ -62,15 +62,8 @@ body {
 }
 
 /* ============================================================
-   Kopfzeile
+   Icon-Button (Dialoge etc.)
    ============================================================ */
-.topbar {
-  flex: none;
-  display: flex; align-items: center; justify-content: space-between;
-  min-height: 32px; margin-bottom: 6px;
-}
-.topbar::before { content: ""; }
-.topbar-actions { display: flex; gap: 4px; margin-left: auto; }
 .icon-btn {
   display: grid; place-items: center; width: 32px; height: 32px;
   appearance: none; cursor: pointer; padding: 0;
@@ -80,8 +73,35 @@ body {
 }
 .icon-btn:hover { background: var(--surface-3); color: var(--ink); }
 .icon-btn:active { transform: scale(0.94); }
-.icon-btn.spinning svg { animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   Aktionsleiste
+   ============================================================ */
+.action-bar {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.action-group { display: flex; align-items: center; gap: 5px; }
+.share-wrap { position: relative; display: inline-flex; }
+.share-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  min-width: 196px; padding: 5px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); box-shadow: var(--sh-lg);
+  animation: pop .16s var(--ease-spring);
+}
+.share-item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  appearance: none; cursor: pointer; text-align: left;
+  border: 0; border-radius: var(--r-sm); background: transparent;
+  color: var(--ink); font: inherit; font-size: 12.5px; font-weight: 550;
+  padding: 8px 9px;
+}
+.share-item svg { flex: none; color: var(--muted); }
+.share-item:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.share-item:hover svg { color: var(--accent); }
 
 /* ============================================================
    Quell-Seiten-Karte
@@ -158,10 +178,6 @@ body {
 }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 
-.summary-tools {
-  flex: none;
-  display: flex; justify-content: flex-end; gap: 5px; margin: -4px 0 8px;
-}
 .tool-btn {
   display: grid; place-items: center; width: 31px; height: 31px;
   appearance: none; cursor: pointer; padding: 0;
@@ -171,17 +187,21 @@ body {
 }
 .tool-btn:hover { border-color: var(--accent-line); background: var(--surface-2); color: var(--accent); }
 .tool-btn:active { transform: scale(0.94); }
-.tool-btn[aria-pressed="true"] {
+.tool-btn[aria-pressed="true"], .tool-btn[aria-expanded="true"] {
   border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink);
 }
+.tool-btn.spinning svg { animation: spin .7s linear infinite; }
 
 .summary-scroll {
   flex: 1 1 auto; min-height: 0; overflow: auto;
   padding: 0 2px 12px 0;
   scroll-behavior: smooth;
+  --reading-scale: 1;
 }
+.summary-scroll[data-fontsize="gross"]     { --reading-scale: 1.18; }
+.summary-scroll[data-fontsize="sehrgross"] { --reading-scale: 1.4; }
 .summary {
-  font-size: 13.5px; line-height: 1.62;
+  font-size: calc(13.5px * var(--reading-scale)); line-height: 1.62;
 }
 .summary-loading {
   min-height: 150px; display: grid; place-items: center; gap: 10px;
