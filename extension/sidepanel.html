@@ -152,17 +152,35 @@
         </label>
 
         <label class="set-row">
-          <span class="set-text"><span class="set-title">Einfache Sprache</span><span class="set-desc">Kurze Sätze, Niveau B1</span></span>
-          <span class="switch">
-            <input type="checkbox" id="plain" />
-            <span class="track" aria-hidden="true"></span>
-          </span>
-        </label>
-
-        <label class="set-row">
           <span class="set-text"><span class="set-title">Automatisch aktualisieren</span><span class="set-desc">Neue Seite automatisch zusammenfassen</span></span>
           <span class="switch">
             <input type="checkbox" id="autoRun" checked />
+            <span class="track" aria-hidden="true"></span>
+          </span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section" aria-labelledby="a11yTitle">
+      <div class="settings-section-head">
+        <div>
+          <h3 id="a11yTitle">Barrierefreiheit</h3>
+          <p>Lesbarkeit der Zusammenfassung.</p>
+        </div>
+      </div>
+      <div class="settings-panel">
+        <div class="set-row set-row--static">
+          <span class="set-text"><span class="set-title">Schriftgröße</span><span class="set-desc">Größe von Zusammenfassung & Antworten</span></span>
+          <div class="segmented" id="fontSizeSeg" role="radiogroup" aria-label="Schriftgröße">
+            <button type="button" class="seg-btn" data-size="normal" role="radio" aria-checked="true" title="Normal" aria-label="Normal"><span style="font-size:12px">A</span></button>
+            <button type="button" class="seg-btn" data-size="gross" role="radio" aria-checked="false" title="Größer" aria-label="Größer"><span style="font-size:15px">A</span></button>
+            <button type="button" class="seg-btn" data-size="sehrgross" role="radio" aria-checked="false" title="Sehr groß" aria-label="Sehr groß"><span style="font-size:18px">A</span></button>
+          </div>
+        </div>
+        <label class="set-row">
+          <span class="set-text"><span class="set-title">Einfache Sprache</span><span class="set-desc">Kurze Sätze, Niveau B1</span></span>
+          <span class="switch">
+            <input type="checkbox" id="plain" />
             <span class="track" aria-hidden="true"></span>
           </span>
         </label>

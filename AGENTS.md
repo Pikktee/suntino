@@ -49,9 +49,13 @@ The extension extracts page text by injecting `pageExtractor()` into the active 
 
 ## Side panel UX
 
-- The Chrome Side Panel already shows the extension title, so `sidepanel.html` should not add a second visible "Suntino" app header.
-- Style and length controls are compact `<select>` controls near the source card; avoid showing all modes as large cards in the main view. The code still uses historical `fokus` ids internally.
-- Summary actions (`copy`, Markdown download, TTS) live as icon-only buttons above the summary in `summaryTools`.
+- The Chrome Side Panel already shows the extension title (plus the native pin/close controls), so `sidepanel.html` should not add a second visible "Suntino" app header. The extension cannot add buttons into Chrome's native side panel header.
+- Style and length controls are custom dropdowns (`select-trigger` + `select-menu`, not native `<select>`) near the source card; avoid showing all modes as large cards in the main view. The code still uses historical `fokus` ids internally. The style dropdown shows each style's optional `desc` under its name. (Zielsprache in settings stays a native `<select>` due to its long option list.)
+- The uppercase `Stil`/`Länge` label sits inside the bordered `select-trigger` (left of the value), not as a separate element outside the box.
+- Deleting a style or resetting styles to defaults must go through the in-panel confirmation dialog (`askConfirm`), never a native `confirm()`.
+- Settings has a `Barrierefreiheit` section holding the font-size control and `Einfache Sprache`. Font size is a segmented A-button control (`#fontSizeSeg`, `prefs.fontSize` ∈ `normal|gross|sehrgross`) that only scales the reading area (summary + Q&A) via `--reading-scale` / `data-fontsize` on `#summaryScroll` — it does not regenerate the summary and does not scale the rest of the UI. Summary/Q&A inner sizes are `em`-relative so they scale together. (Chrome's page zoom does not work reliably in the side panel, hence the dedicated setting.)
+- All actions live in one `actionBar` above the summary: `reload` and `settings` (always visible), plus `tts` and a `share` button (shown once a summary exists). There is no separate top bar.
+- The `share` button opens a small dropdown menu (`shareMenu`) holding `copy` and Markdown download; it is the place for future export options. Close it on outside-click, Escape, action, or when opening settings.
 - Q&A is a persistent bottom input (`qa-dock`) with placeholder "Rückfrage zur Seite stellen..."; it is disabled until a summary is loaded. Avoid adding a separate "Rückfrage stellen" button.
 - Q&A messages belong inside the result scroll area (`summaryScroll`) below the generated summary, not in a fixed overlay, and should auto-scroll downward while answers stream.
 - Style options are managed as one list in `prefs.focusPoints`: no separate UI distinction between built-in and user-created points.

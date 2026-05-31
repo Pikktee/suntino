@@ -100,6 +100,8 @@ const SUPPORTED_LANGS = new Set([
   'cs', 'el', 'ro', 'hu',
 ]);
 
+const FONT_SIZES = new Set(['normal', 'gross', 'sehrgross']);
+
 let page = { text: '', title: '', url: '', kind: 'text' };
 let prefs = {
   fokus: 'standard',
@@ -107,6 +109,7 @@ let prefs = {
   zielsprache: 'auto',
   plain: false,
   autoRun: true,
+  fontSize: 'normal',
   focusPoints: cloneDefaultFocusPoints(),
 };
 let lastKey = null;
@@ -125,12 +128,13 @@ let settingsRefreshPending = false;
 /* ====================================================================== */
 
 async function loadPrefs() {
-  const saved = await chrome.storage.local.get(['fokus', 'length', 'plain', 'zielsprache', 'autoRun', 'focusPoints', 'customFocuses']);
+  const saved = await chrome.storage.local.get(['fokus', 'length', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses']);
   if (saved.fokus) prefs.fokus = saved.fokus === 'ueberblick' ? 'standard' : saved.fokus;
   if (saved.length) prefs.length = saved.length;
   if (typeof saved.plain === 'boolean') prefs.plain = saved.plain;
   if (saved.zielsprache) prefs.zielsprache = normalizeLanguage(saved.zielsprache);
   if (typeof saved.autoRun === 'boolean') prefs.autoRun = saved.autoRun;
+  if (FONT_SIZES.has(saved.fontSize)) prefs.fontSize = saved.fontSize;
   if (Array.isArray(saved.focusPoints)) {
     prefs.focusPoints = sanitizeFocusPoints(saved.focusPoints);
   } else {
@@ -145,6 +149,7 @@ function savePrefs() {
   chrome.storage.local.set({
     fokus: prefs.fokus, length: prefs.length, plain: prefs.plain,
     zielsprache: prefs.zielsprache, autoRun: prefs.autoRun,
+    fontSize: prefs.fontSize,
     focusPoints: prefs.focusPoints,
   });
 }
