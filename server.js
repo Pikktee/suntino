@@ -65,6 +65,8 @@ const LENGTH_RATIO = { kurz: 0.25, mittel: 0.4, lang: 0.6 };
 const LENGTH_MIN = { kurz: 6, mittel: 10, lang: 14 };
 
 const BUILTIN_FOCUS = new Set(['ueberblick', 'zahlen', 'procontra']);
+// Stile, die Markdown-Tabellen erzeugen → höheres Token-Budget (s. buildMessages).
+const TABLE_FOCUS = new Set(['zahlen', 'procontra']);
 
 const LANG_NAMES = {
   de: 'Deutsch',
@@ -197,7 +199,16 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
   const sourceWords = (kind === 'text' || kind === 'selection') ? countWords(text) : 0;
   const lengthTarget = lengthForSource(length, sourceWords);
   const instruction = buildInstruction({ length, title, url, kind, sourceWords });
-  const maxTokens = lengthTarget.maxWords ? Math.max(32, Math.ceil(lengthTarget.maxWords * 2.5) + 20) : 2048;
+  // max_tokens ist nur eine Sicherheitsgrenze (die Länge steuert der Prompt).
+  // Tabellen-Stile (Zahlen & Fakten, Pro & Contra) brauchen deutlich mehr Tokens
+  // pro Wort, weil Markdown-Tabellen viel Syntax-Overhead haben (| , Trennzeile,
+  // Zahlen, Komposita). Sonst wird die Zusammenfassung mitten in einer Zeile
+  // abgeschnitten. Custom-Stile können ebenfalls Tabellen anfordern.
+  const tableStyle = TABLE_FOCUS.has(fokus) || Boolean(String(customFocus || '').trim());
+  const tokensPerWord = tableStyle ? 6 : 2.5;
+  const maxTokens = lengthTarget.maxWords
+    ? Math.max(256, Math.ceil(lengthTarget.maxWords * tokensPerWord) + 64)
+    : 2048;
 
   if (kind === 'video') {
     return {
