@@ -44,6 +44,7 @@ const els = {
   customFocusNew: document.getElementById('customFocusNew'),
   customFocusDelete: document.getElementById('customFocusDelete'),
   focusReset: document.getElementById('focusReset'),
+  cacheClearBtn: document.getElementById('cacheClearBtn'),
   focusDialog: document.getElementById('focusDialog'),
   focusDialogScrim: document.getElementById('focusDialogScrim'),
   focusDialogClose: document.getElementById('focusDialogClose'),
@@ -229,9 +230,14 @@ function activeFocus() {
 function focusToBackend(id) {
   return id === 'standard' ? 'ueberblick' : id;
 }
+// Eingebaute Stile haben im Backend dedizierte Prompt-Templates
+// (prompts/summary/styles/*). Für sie darf der Client keinen customFocus
+// senden, sonst überschreibt der schwächere Client-Prompt das Template.
+const BUILTIN_FOCUS_IDS = new Set(['standard', 'zahlen', 'procontra']);
 function focusPromptForBackend(id) {
+  if (BUILTIN_FOCUS_IDS.has(id)) return '';
   const focus = getFocusById(id);
-  return focus?.locked ? '' : focus?.prompt || '';
+  return focus?.prompt || '';
 }
 const LENGTH_OPTIONS = [
   { value: 'kurz', name: 'Kurz' },
@@ -294,20 +300,25 @@ function renderMarkdown(md) {
     const h = line.match(/^(#{2,4})\s+(.*)$/);
     const todoLi = line.match(/^\s*-\s+\[( |x|X)\]\s+(.*)$/);
     const li = line.match(/^\s*[-*]\s+(.*)$/);
-    const tableRow = line.trim().startsWith('|') && line.trim().endsWith('|');
-    const nextLine = lines[i + 1]?.trim() || '';
-    const tableSep = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(nextLine);
-    if (tableRow && tableSep) {
+    const isTableRow = (l) => { const t = l.trim(); return t.length > 1 && t.startsWith('|') && t.endsWith('|'); };
+    const isTableSep = (l) => /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/.test(l);
+    const tableRow = isTableRow(line);
+    const nextLine = lines[i + 1] ?? '';
+    // Tabelle erkennen: aktuelle Pipe-Zeile gefolgt von einer Trennzeile
+    // ODER direkt einer weiteren Pipe-Zeile. Die "|---|"-Trennzeile ist
+    // optional, da schwächere Modelle sie häufig weglassen.
+    if (tableRow && (isTableSep(nextLine) || isTableRow(nextLine))) {
       closeList();
       const splitRow = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
       const header = splitRow(line);
-      i += 2;
+      let j = i + 1;
+      if (isTableSep(nextLine)) j++;
       const rows = [];
-      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
-        rows.push(splitRow(lines[i]));
-        i++;
+      while (j < lines.length && isTableRow(lines[j])) {
+        if (!isTableSep(lines[j])) rows.push(splitRow(lines[j]));
+        j++;
       }
-      i--;
+      i = j - 1;
       out.push('<table><thead><tr>' + header.map((cell) => `<th>${inline(cell)}</th>`).join('') + '</tr></thead><tbody>');
       rows.forEach((row) => {
         out.push('<tr>' + header.map((_, idx) => `<td>${inline(row[idx] || '')}</td>`).join('') + '</tr>');
@@ -452,6 +463,12 @@ async function cacheGet(key) {
 async function cachePut(key, entry) {
   try { await chrome.storage.session.set({ [key]: entry }); } catch {}
 }
+async function cacheRemove(key) {
+  try { await chrome.storage.session.remove(key); } catch {}
+}
+function qaCacheKey(url = page.url) {
+  return 'qa:' + normalizeUrl(url);
+}
 
 function setQaReady(ready) {
   els.qaForm.classList.toggle('is-disabled', !ready);
@@ -533,7 +550,8 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
     els.summary.removeAttribute('aria-busy');
     showSummaryActions(fokus);
     await cachePut(key, { markdown: currentMarkdown, ts: Date.now(), fokus });
-    if (qaCurrentUrlKey !== normalizeUrl(page.url)) resetQa();
+    if (qaCurrentUrlKey !== normalizeUrl(page.url)) await restoreQa();
+    else renderQaThread();
   } catch (e) {
     if (e.name === 'AbortError') return;
     els.summary.removeAttribute('aria-busy');
@@ -558,7 +576,8 @@ function showSummary(markdown, fokus, fromCache) {
   els.summary.removeAttribute('aria-busy');
   els.summary.innerHTML = renderMarkdown(markdown);
   showSummaryActions(fokus);
-  if (qaCurrentUrlKey !== normalizeUrl(page.url)) resetQa();
+  if (qaCurrentUrlKey !== normalizeUrl(page.url)) restoreQa();
+  else renderQaThread();
 }
 
 function showSummaryActions() {
@@ -605,7 +624,7 @@ function stripMarkdownForTts(md) {
   return md
     .replace(/```[\s\S]*?```/g, '').replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
-    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, '')
+    .replace(/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/gm, '')
     .replace(/^\s*\|(.+)\|\s*$/gm, (_, row) => row.split('|').map((cell) => cell.trim()).filter(Boolean).join('. '))
     .replace(/^#{1,6}\s+/gm, '').replace(/^\s*[-*]\s+\[[ xX]\]\s+/gm, '')
     .replace(/^\s*[-*]\s+/gm, '').replace(/\n{2,}/g, '. ').replace(/\n/g, ' ');
@@ -650,10 +669,36 @@ function toggleTts() { if (ttsUtterance) stopTts(); else speak(); }
 
 function resetQa() {
   qaHistory = [];
-  qaCurrentUrlKey = normalizeUrl(page.url);
+  qaCurrentUrlKey = null;
   els.qaThread.innerHTML = '';
   els.qa.hidden = true;
   if (qaAbort) { qaAbort.abort(); qaAbort = null; }
+}
+function renderQaThread() {
+  els.qaThread.innerHTML = '';
+  if (!qaHistory.length) { els.qa.hidden = true; return; }
+  els.qa.hidden = false;
+  for (const m of qaHistory) {
+    const div = document.createElement('div');
+    div.className = 'qa-msg ' + (m.role === 'assistant' ? 'assistant' : 'user');
+    div.innerHTML = m.role === 'assistant' ? renderMarkdown(m.content) : escapeHtml(m.content);
+    els.qaThread.appendChild(div);
+  }
+  scrollResultToBottom();
+}
+// Stellt die zur aktuellen Seite gespeicherten Rückfragen wieder her.
+async function restoreQa() {
+  if (qaAbort) { qaAbort.abort(); qaAbort = null; }
+  qaCurrentUrlKey = normalizeUrl(page.url);
+  const cached = await cacheGet(qaCacheKey());
+  qaHistory = Array.isArray(cached?.history) ? cached.history : [];
+  renderQaThread();
+}
+async function saveQaCache() {
+  if (!qaCurrentUrlKey) return;
+  const key = 'qa:' + qaCurrentUrlKey;
+  if (qaHistory.length) await cachePut(key, { history: qaHistory, ts: Date.now() });
+  else await cacheRemove(key);
 }
 function appendQaMsg(role, text) {
   els.qa.hidden = false;
@@ -679,6 +724,7 @@ async function askQuestion(question) {
     return;
   }
   clearError();
+  if (!qaCurrentUrlKey) qaCurrentUrlKey = normalizeUrl(page.url);
   appendQaMsg('user', question);
   qaHistory.push({ role: 'user', content: question });
   const msgEl = appendQaMsg('assistant', '');
@@ -706,6 +752,7 @@ async function askQuestion(question) {
     msgEl.innerHTML = renderMarkdown(acc);
     scrollResultToBottom();
     qaHistory.push({ role: 'assistant', content: acc });
+    saveQaCache();
   } catch (e) {
     if (e.name === 'AbortError') return;
     msgEl.innerHTML = `<em style="color:var(--err)">${escapeHtml(e.message)}</em>`;
@@ -1030,6 +1077,21 @@ els.customFocusForm.addEventListener('submit', (e) => {
 });
 els.customFocusDelete.addEventListener('click', () => deleteFocusPoint());
 els.focusReset.addEventListener('click', resetFocusPoints);
+els.cacheClearBtn.addEventListener('click', async () => {
+  const ok = await askConfirm({
+    title: 'Cache leeren?',
+    text: 'Alle zwischengespeicherten Zusammenfassungen und Rückfragen werden gelöscht. Deine Einstellungen und Stile bleiben erhalten.',
+    confirmLabel: 'Leeren',
+  });
+  if (!ok) return;
+  await chrome.storage.session.clear().catch(() => {});
+  qaHistory = [];
+  qaCurrentUrlKey = null;
+  lastKey = null;
+  els.qaThread.innerHTML = '';
+  els.qa.hidden = true;
+  showToast('Cache geleert');
+});
 els.focusDialogClose.addEventListener('click', closeFocusDialog);
 els.focusDialogScrim.addEventListener('click', closeFocusDialog);
 

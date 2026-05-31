@@ -58,13 +58,15 @@ The extension extracts page text by injecting `pageExtractor()` into the active 
 - The `share` button opens a small dropdown menu (`shareMenu`) holding `copy` and Markdown download; it is the place for future export options. Close it on outside-click, Escape, action, or when opening settings.
 - Q&A is a persistent bottom input (`qa-dock`) with placeholder "Rückfrage zur Seite stellen..."; it is disabled until a summary is loaded. Avoid adding a separate "Rückfrage stellen" button.
 - Q&A messages belong inside the result scroll area (`summaryScroll`) below the generated summary, not in a fixed overlay, and should auto-scroll downward while answers stream.
+- Q&A threads are cached per normalized page URL in `chrome.storage.session` under `qa:<url>` and restored when the page's summary is shown again (see `restoreQa`/`saveQaCache`). Summaries are cached under `sum:<...>`.
+- The `Allgemein` settings section has a `cacheClearBtn` ("Cache leeren") that clears `chrome.storage.session` (cached summaries + Q&A) via the in-panel `askConfirm`, never a native `confirm()`. It must not touch `prefs`/styles (those live in `chrome.storage.local`).
 - Style options are managed as one list in `prefs.focusPoints`: no separate UI distinction between built-in and user-created points.
 - The style `Standard` is locked and must stay available; it creates a balanced summary and cannot be edited or deleted.
 - Non-locked styles can be edited/deleted from the settings page. The editor opens as a focused modal on top of the settings view.
 - The settings style list hides the locked `Standard` point; it remains available only in the main style dropdown.
 - Settings include a reset action that restores the default styles.
 - Default non-locked styles are currently `Zahlen & Fakten` and `Pro & Contra`; do not reintroduce `To-dos` or `Wissenschaftlich` without an explicit product decision.
-- Summary rendering supports compact Markdown tables for focus modes such as `Zahlen & Fakten` and `Pro & Contra`.
+- Summary rendering supports compact Markdown tables for focus modes such as `Zahlen & Fakten` and `Pro & Contra`. Built-in styles (`BUILTIN_FOCUS_IDS` = `standard`, `zahlen`, `procontra`) must NOT send `customFocus` to the backend — the server has dedicated, stronger table prompts in `prompts/summary/styles/`, and a non-empty `customFocus` would shadow them (that bug previously suppressed the tables).
 - Copy success feedback is shown via the in-panel `.toast`, not by changing the icon button text.
 - The old textual status line is intentionally removed. Loading state is shown inside the summary area via `.summary-loading`.
 - Settings are a separate in-panel view, not a modal. Use `mainView` and `settingsPanel` to switch between the main screen and settings.
