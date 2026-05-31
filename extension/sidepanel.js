@@ -42,7 +42,7 @@ const els = {
   customFocusDesc: document.getElementById('customFocusDesc'),
   customFocusPrompt: document.getElementById('customFocusPrompt'),
   customFocusNew: document.getElementById('customFocusNew'),
-  customFocusDelete: document.getElementById('customFocusDelete'),
+  customFocusCancel: document.getElementById('customFocusCancel'),
   focusReset: document.getElementById('focusReset'),
   cacheClearBtn: document.getElementById('cacheClearBtn'),
   focusDialog: document.getElementById('focusDialog'),
@@ -962,7 +962,6 @@ function openFocusDialog(id = '') {
   els.customFocusName.disabled = Boolean(item?.locked);
   els.customFocusDesc.disabled = Boolean(item?.locked);
   els.customFocusPrompt.disabled = Boolean(item?.locked);
-  els.customFocusDelete.hidden = !item || item.locked;
   els.customFocusEditorTitle.textContent = item ? 'Stil bearbeiten' : 'Neuen Stil erstellen';
   renderCustomFocusList();
   els.focusDialogScrim.hidden = false;
@@ -1075,7 +1074,7 @@ els.customFocusForm.addEventListener('submit', (e) => {
   e.preventDefault();
   saveCustomFocusFromForm();
 });
-els.customFocusDelete.addEventListener('click', () => deleteFocusPoint());
+els.customFocusCancel.addEventListener('click', closeFocusDialog);
 els.focusReset.addEventListener('click', resetFocusPoints);
 els.cacheClearBtn.addEventListener('click', async () => {
   const ok = await askConfirm({
@@ -1148,7 +1147,13 @@ function closeSettings() {
   if (settingsRefreshPending && page.url) summarize({ force: true });
   settingsRefreshPending = false;
 }
-function onSettingsKey(e) { if (e.key === 'Escape') closeSettings(); }
+function onSettingsKey(e) {
+  if (e.key !== 'Escape') return;
+  // Offene Dialoge fangen Escape zuerst ab – nicht die Einstellungen schließen.
+  if (!els.confirmDialog.hidden) return;
+  if (!els.focusDialog.hidden) { closeFocusDialog(); return; }
+  closeSettings();
+}
 
 els.settingsBtn.addEventListener('click', () =>
   els.settingsPanel.hidden ? openSettings() : closeSettings()
