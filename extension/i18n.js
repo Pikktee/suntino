@@ -84,7 +84,7 @@ const MESSAGES = {
     'settings.uiLang': 'Sprache der Oberfläche',
     'settings.uiLangDesc': 'Sprache von Menüs & Schaltflächen',
     'settings.targetLang': 'Zielsprache',
-    'settings.targetLangDesc': 'Ausgabe der Zusammenfassung',
+    'settings.targetLangDesc': 'Sprache der Zusammenfassung',
     'settings.autoRun': 'Automatisch aktualisieren',
     'settings.autoRunDesc': 'Neue Seite automatisch zusammenfassen',
     'settings.cacheClear': 'Cache leeren',
