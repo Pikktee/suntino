@@ -9,22 +9,22 @@
   <!-- ============ Kompakte Steuerung + Einstellungen ============ -->
   <section class="control-strip" aria-label="Zusammenfassung steuern">
     <div class="select-field" id="fokusField">
-      <button class="select-trigger" id="fokusTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Stil wählen">
-        <span class="select-label">Stil</span>
+      <button class="select-trigger" id="fokusTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria-label="ctrl.styleAria">
+        <span class="select-label" data-i18n="ctrl.styleLabel">Stil</span>
         <span class="select-value" id="fokusValue">Standard</span>
         <svg class="select-chevron" viewBox="0 0 12 8" width="11" height="8" aria-hidden="true"><path fill="currentColor" d="M1.4 0L6 4.6 10.6 0 12 1.4l-6 6-6-6z"/></svg>
       </button>
-      <div class="select-menu" id="fokusMenu" role="listbox" aria-label="Stil" hidden></div>
+      <div class="select-menu" id="fokusMenu" role="listbox" data-i18n-aria-label="ctrl.styleLabel" hidden></div>
     </div>
     <div class="select-field select-field--small" id="lengthField">
-      <button class="select-trigger" id="lengthTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Länge wählen">
-        <span class="select-label">Länge</span>
+      <button class="select-trigger" id="lengthTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria-label="ctrl.lengthAria">
+        <span class="select-label" data-i18n="ctrl.lengthLabel">Länge</span>
         <span class="select-value" id="lengthValue">Mittel</span>
         <svg class="select-chevron" viewBox="0 0 12 8" width="11" height="8" aria-hidden="true"><path fill="currentColor" d="M1.4 0L6 4.6 10.6 0 12 1.4l-6 6-6-6z"/></svg>
       </button>
-      <div class="select-menu" id="lengthMenu" role="listbox" aria-label="Länge" hidden></div>
+      <div class="select-menu" id="lengthMenu" role="listbox" data-i18n-aria-label="ctrl.lengthLabel" hidden></div>
     </div>
-    <button class="settings-control" id="settingsBtn" type="button" title="Einstellungen" aria-label="Einstellungen" aria-expanded="false">
+    <button class="settings-control" id="settingsBtn" type="button" data-i18n-title="ctrl.settings" data-i18n-aria-label="ctrl.settings" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -38,30 +38,30 @@
       <div class="source-row" id="sourceCard">
         <img id="favicon" class="favicon" alt="" />
         <div class="source-text">
-          <p class="source-title" id="sourceTitle" aria-live="polite">Lese Seite …</p>
+          <p class="source-title" id="sourceTitle" aria-live="polite" data-i18n="source.reading">Lese Seite …</p>
           <p class="source-meta" id="sourceMeta"></p>
         </div>
       </div>
       <div class="action-bar" id="actionBar" aria-label="Aktionen">
-        <button class="tool-btn" id="ttsBtn" type="button" disabled title="Vorlesen" aria-label="Vorlesen">
+        <button class="tool-btn" id="ttsBtn" type="button" disabled data-i18n-title="action.tts" data-i18n-aria-label="action.tts">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
         </button>
         <div class="share-wrap">
-          <button class="tool-btn" id="shareBtn" type="button" disabled title="Teilen" aria-label="Teilen" aria-haspopup="true" aria-expanded="false">
+          <button class="tool-btn" id="shareBtn" type="button" disabled data-i18n-title="action.share" data-i18n-aria-label="action.share" aria-haspopup="true" aria-expanded="false">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
           </button>
-          <div class="share-menu" id="shareMenu" role="menu" aria-label="Teilen-Optionen" hidden>
+          <div class="share-menu" id="shareMenu" role="menu" data-i18n-aria-label="action.shareOptions" hidden>
             <button class="share-item" id="copyBtn" type="button" role="menuitem">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span>Kopieren</span>
+              <span data-i18n="action.copy">Kopieren</span>
             </button>
             <button class="share-item" id="downloadBtn" type="button" role="menuitem">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Als Markdown speichern</span>
+              <span data-i18n="action.downloadMd">Als Markdown speichern</span>
             </button>
           </div>
         </div>
-        <button class="tool-btn" id="reloadBtn" type="button" disabled title="Neu zusammenfassen" aria-label="Neu zusammenfassen">
+        <button class="tool-btn" id="reloadBtn" type="button" disabled data-i18n-title="action.reload" data-i18n-aria-label="action.reload">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>
         </button>
       </div>
@@ -71,7 +71,7 @@
     <div class="result" id="result" hidden>
       <div class="summary-scroll" id="summaryScroll">
         <div class="summary" id="summary"></div>
-        <section class="qa" id="qa" hidden aria-label="Rückfragen">
+        <section class="qa" id="qa" hidden data-i18n-aria-label="qa.label">
           <div class="qa-thread" id="qaThread"></div>
         </section>
       </div>
@@ -82,8 +82,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <form class="qa-dock is-disabled" id="qaForm" aria-disabled="true">
-    <input class="qa-input" id="qaInput" type="text" placeholder="Rückfrage zur Seite stellen..." autocomplete="off" disabled />
-    <button class="qa-send" id="qaSendBtn" type="submit" aria-label="Frage senden" disabled>
+    <input class="qa-input" id="qaInput" type="text" data-i18n-placeholder="qa.placeholder" placeholder="Rückfrage zur Seite stellen..." autocomplete="off" disabled />
+    <button class="qa-send" id="qaSendBtn" type="submit" data-i18n-aria-label="qa.send" disabled>
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
   </form>
@@ -92,64 +92,70 @@
   <!-- ============ Einstellungen ============ -->
   <section class="settings-view app-view" id="settingsPanel" aria-label="Einstellungen" hidden>
     <div class="settings-head">
-      <button class="back-btn" id="settingsClose" type="button" aria-label="Zurück zur Zusammenfassung">
+      <button class="back-btn" id="settingsClose" type="button" data-i18n-aria-label="settings.backAria">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        <span>Zurück</span>
+        <span data-i18n="settings.back">Zurück</span>
       </button>
-      <h2>Einstellungen</h2>
+      <h2 data-i18n="settings.title">Einstellungen</h2>
     </div>
 
     <section class="settings-section" aria-labelledby="generalSettingsTitle">
       <div class="settings-section-head">
-        <h3 id="generalSettingsTitle">Allgemein</h3>
+        <h3 id="generalSettingsTitle" data-i18n="settings.general">Allgemein</h3>
       </div>
       <div class="settings-panel">
+        <label class="set-row" for="uiLang">
+          <span class="set-text"><span class="set-title" data-i18n="settings.uiLang">Sprache der Oberfläche</span><span class="set-desc" data-i18n="settings.uiLangDesc">Sprache von Menüs &amp; Schaltflächen</span></span>
+          <!-- Optionen werden in sidepanel.js aus UI_LANGUAGES erzeugt -->
+          <select id="uiLang" class="select"></select>
+        </label>
+
         <label class="set-row" for="zielsprache">
-          <span class="set-text"><span class="set-title">Zielsprache</span><span class="set-desc">Ausgabe der Zusammenfassung</span></span>
+          <span class="set-text"><span class="set-title" data-i18n="settings.targetLang">Zielsprache</span><span class="set-desc" data-i18n="settings.targetLangDesc">Ausgabe der Zusammenfassung</span></span>
           <select id="zielsprache" class="select">
-            <option value="auto">Standard</option>
+            <option value="auto" data-i18n="lang.auto">Standard</option>
             <option value="de">Deutsch</option>
-            <option value="en">Englisch</option>
-            <option value="es">Spanisch</option>
-            <option value="fr">Französisch</option>
-            <option value="it">Italienisch</option>
-            <option value="pt">Portugiesisch</option>
-            <option value="nl">Niederländisch</option>
-            <option value="pl">Polnisch</option>
-            <option value="tr">Türkisch</option>
-            <option value="uk">Ukrainisch</option>
-            <option value="ru">Russisch</option>
-            <option value="ar">Arabisch</option>
-            <option value="he">Hebräisch</option>
-            <option value="fa">Persisch</option>
-            <option value="hi">Hindi</option>
-            <option value="bn">Bengalisch</option>
-            <option value="ta">Tamil</option>
-            <option value="te">Telugu</option>
-            <option value="mr">Marathi</option>
-            <option value="pa">Punjabi</option>
-            <option value="ur">Urdu</option>
-            <option value="zh-Hans">Chinesisch (vereinfacht)</option>
-            <option value="ja">Japanisch</option>
-            <option value="ko">Koreanisch</option>
-            <option value="vi">Vietnamesisch</option>
-            <option value="id">Indonesisch</option>
-            <option value="ms">Malaiisch</option>
-            <option value="th">Thailändisch</option>
-            <option value="sw">Suaheli</option>
-            <option value="sv">Schwedisch</option>
-            <option value="da">Dänisch</option>
-            <option value="no">Norwegisch</option>
-            <option value="fi">Finnisch</option>
-            <option value="cs">Tschechisch</option>
-            <option value="el">Griechisch</option>
-            <option value="ro">Rumänisch</option>
-            <option value="hu">Ungarisch</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="it">Italiano</option>
+            <option value="pt">Português</option>
+            <option value="nl">Nederlands</option>
+            <option value="pl">Polski</option>
+            <option value="tr">Türkçe</option>
+            <option value="uk">Українська</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="he">עברית</option>
+            <option value="fa">فارسی</option>
+            <option value="hi">हिन्दी</option>
+            <option value="bn">বাংলা</option>
+            <option value="ta">தமிழ்</option>
+            <option value="te">తెలుగు</option>
+            <option value="mr">मराठी</option>
+            <option value="pa">ਪੰਜਾਬੀ</option>
+            <option value="ur">اردو</option>
+            <option value="zh-Hans">简体中文</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="vi">Tiếng Việt</option>
+            <option value="id">Bahasa Indonesia</option>
+            <option value="ms">Bahasa Melayu</option>
+            <option value="th">ไทย</option>
+            <option value="sw">Kiswahili</option>
+            <option value="sv">Svenska</option>
+            <option value="da">Dansk</option>
+            <option value="no">Norsk</option>
+            <option value="fi">Suomi</option>
+            <option value="cs">Čeština</option>
+            <option value="el">Ελληνικά</option>
+            <option value="ro">Română</option>
+            <option value="hu">Magyar</option>
           </select>
         </label>
 
         <label class="set-row">
-          <span class="set-text"><span class="set-title">Automatisch aktualisieren</span><span class="set-desc">Neue Seite automatisch zusammenfassen</span></span>
+          <span class="set-text"><span class="set-title" data-i18n="settings.autoRun">Automatisch aktualisieren</span><span class="set-desc" data-i18n="settings.autoRunDesc">Neue Seite automatisch zusammenfassen</span></span>
           <span class="switch">
             <input type="checkbox" id="autoRun" checked />
             <span class="track" aria-hidden="true"></span>
@@ -157,10 +163,10 @@
         </label>
 
         <div class="set-row set-row--static">
-          <span class="set-text"><span class="set-title">Cache leeren</span><span class="set-desc">Gespeicherte Zusammenfassungen &amp; Rückfragen löschen</span></span>
+          <span class="set-text"><span class="set-title" data-i18n="settings.cacheClear">Cache leeren</span><span class="set-desc" data-i18n="settings.cacheClearDesc">Gespeicherte Zusammenfassungen &amp; Rückfragen löschen</span></span>
           <button class="mini-btn mini-btn--danger" id="cacheClearBtn" type="button">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-            <span>Leeren</span>
+            <span data-i18n="settings.clear">Leeren</span>
           </button>
         </div>
       </div>
@@ -168,19 +174,19 @@
 
     <section class="settings-section" aria-labelledby="a11yTitle">
       <div class="settings-section-head">
-        <h3 id="a11yTitle">Barrierefreiheit</h3>
+        <h3 id="a11yTitle" data-i18n="settings.a11y">Barrierefreiheit</h3>
       </div>
       <div class="settings-panel">
         <div class="set-row set-row--static">
-          <span class="set-text"><span class="set-title">Schriftgröße</span><span class="set-desc">Größe von Zusammenfassung & Antworten</span></span>
-          <div class="segmented" id="fontSizeSeg" role="radiogroup" aria-label="Schriftgröße">
-            <button type="button" class="seg-btn" data-size="normal" role="radio" aria-checked="true" title="Normal" aria-label="Normal"><span style="font-size:12px">A</span></button>
-            <button type="button" class="seg-btn" data-size="gross" role="radio" aria-checked="false" title="Größer" aria-label="Größer"><span style="font-size:15px">A</span></button>
-            <button type="button" class="seg-btn" data-size="sehrgross" role="radio" aria-checked="false" title="Sehr groß" aria-label="Sehr groß"><span style="font-size:18px">A</span></button>
+          <span class="set-text"><span class="set-title" data-i18n="settings.fontSize">Schriftgröße</span><span class="set-desc" data-i18n="settings.fontSizeDesc">Größe von Zusammenfassung & Antworten</span></span>
+          <div class="segmented" id="fontSizeSeg" role="radiogroup" data-i18n-aria-label="settings.fontSize">
+            <button type="button" class="seg-btn" data-size="normal" role="radio" aria-checked="true" data-i18n-title="settings.fontNormal" data-i18n-aria-label="settings.fontNormal"><span style="font-size:12px">A</span></button>
+            <button type="button" class="seg-btn" data-size="gross" role="radio" aria-checked="false" data-i18n-title="settings.fontLarge" data-i18n-aria-label="settings.fontLarge"><span style="font-size:15px">A</span></button>
+            <button type="button" class="seg-btn" data-size="sehrgross" role="radio" aria-checked="false" data-i18n-title="settings.fontXLarge" data-i18n-aria-label="settings.fontXLarge"><span style="font-size:18px">A</span></button>
           </div>
         </div>
         <label class="set-row">
-          <span class="set-text"><span class="set-title">Einfache Sprache</span><span class="set-desc">Kurze Sätze, Niveau B1</span></span>
+          <span class="set-text"><span class="set-title" data-i18n="settings.plain">Einfache Sprache</span><span class="set-desc" data-i18n="settings.plainDesc">Kurze Sätze, Niveau B1</span></span>
           <span class="switch">
             <input type="checkbox" id="plain" />
             <span class="track" aria-hidden="true"></span>
@@ -191,15 +197,15 @@
 
     <section class="settings-section focus-settings" aria-labelledby="customFocusTitle">
       <div class="settings-section-head">
-        <h3 id="customFocusTitle">Stile</h3>
+        <h3 id="customFocusTitle" data-i18n="settings.styles">Stile</h3>
         <div class="focus-head-actions">
-          <button class="mini-btn" id="focusReset" type="button" title="Standard-Stile wiederherstellen">
+          <button class="mini-btn" id="focusReset" type="button" data-i18n-title="settings.resetStylesTitle">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"/><path d="M3 4v5h5"/></svg>
-            <span>Zurücksetzen</span>
+            <span data-i18n="settings.resetStyles">Zurücksetzen</span>
           </button>
-          <button class="mini-btn mini-btn--primary" id="customFocusNew" type="button" title="Neuen Stil erstellen">
+          <button class="mini-btn mini-btn--primary" id="customFocusNew" type="button" data-i18n-title="settings.newStyleTitle">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Neuer Stil</span>
+            <span data-i18n="settings.newStyle">Neuer Stil</span>
           </button>
         </div>
       </div>
@@ -213,34 +219,34 @@
       <form class="custom-focus-form" id="customFocusForm">
         <div class="focus-editor-head">
           <div>
-            <h4 id="customFocusEditorTitle">Neuen Stil erstellen</h4>
-            <p>Speichert nur diesen Stil. Die Zusammenfassung wird erst beim Zurückgehen aktualisiert.</p>
+            <h4 id="customFocusEditorTitle" data-i18n="editor.newTitle">Neuen Stil erstellen</h4>
+            <p data-i18n="editor.hint">Speichert nur diesen Stil. Die Zusammenfassung wird erst beim Zurückgehen aktualisiert.</p>
           </div>
-          <button class="icon-btn" id="focusDialogClose" type="button" aria-label="Editor schließen">
+          <button class="icon-btn" id="focusDialogClose" type="button" data-i18n-aria-label="editor.close">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         <input type="hidden" id="customFocusId" />
         <label>
-          <span>Name</span>
-          <input id="customFocusName" type="text" maxlength="38" placeholder="z. B. Kritische Fragen" />
+          <span data-i18n="editor.name">Name</span>
+          <input id="customFocusName" type="text" maxlength="38" data-i18n-placeholder="editor.namePlaceholder" placeholder="z. B. Kritische Fragen" />
         </label>
         <label>
-          <span>Beschreibung <small>(optional)</small></span>
-          <input id="customFocusDesc" type="text" maxlength="80" placeholder="Kurz – erscheint im Stil-Menü" />
+          <span><span data-i18n="editor.descLabel">Beschreibung</span> <small data-i18n="editor.optional">(optional)</small></span>
+          <input id="customFocusDesc" type="text" maxlength="80" data-i18n-placeholder="editor.descPlaceholder" placeholder="Kurz – erscheint im Stil-Menü" />
         </label>
         <label>
-          <span>Anweisung</span>
-          <textarea id="customFocusPrompt" rows="5" maxlength="1800" placeholder="Beschreibe, wie Suntino die Seite zusammenfassen soll."></textarea>
+          <span data-i18n="editor.prompt">Anweisung</span>
+          <textarea id="customFocusPrompt" rows="5" maxlength="1800" data-i18n-placeholder="editor.promptPlaceholder" placeholder="Beschreibe, wie Suntino die Seite zusammenfassen soll."></textarea>
         </label>
         <div class="form-actions">
           <button class="mini-btn" id="customFocusCancel" type="button">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            <span>Abbrechen</span>
+            <span data-i18n="editor.cancel">Abbrechen</span>
           </button>
           <button class="mini-btn mini-btn--primary" type="submit">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            <span>Stil speichern</span>
+            <span data-i18n="editor.save">Stil speichern</span>
           </button>
         </div>
       </form>
@@ -253,11 +259,12 @@
     <h4 id="confirmTitle"></h4>
     <p id="confirmText"></p>
     <div class="form-actions">
-      <button class="mini-btn" id="confirmCancel" type="button">Abbrechen</button>
+      <button class="mini-btn" id="confirmCancel" type="button" data-i18n="editor.cancel">Abbrechen</button>
       <button class="mini-btn mini-btn--danger" id="confirmOk" type="button">Löschen</button>
     </div>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ const els = {
   lengthTrigger: document.getElementById('lengthTrigger'),
   lengthValue: document.getElementById('lengthValue'),
   lengthMenu: document.getElementById('lengthMenu'),
+  uiLang: document.getElementById('uiLang'),
   zielsprache: document.getElementById('zielsprache'),
   plain: document.getElementById('plain'),
   autoRun: document.getElementById('autoRun'),
@@ -72,28 +73,46 @@ function showToast(msg) {
 /* State                                                                  */
 /* ====================================================================== */
 
-const STANDARD_DESC = 'Ausgewogene, strukturierte Zusammenfassung';
-const DEFAULT_FOCUS_POINTS = [
-  { id: 'standard', name: 'Standard', desc: STANDARD_DESC, prompt: '', locked: true },
-  {
-    id: 'zahlen',
-    name: 'Zahlen & Fakten',
-    desc: 'Konkrete Zahlen, Daten & Fakten als Tabelle',
-    prompt:
-      'Extrahiere konkrete Zahlen, Daten, Fakten, Messwerte, Zeitangaben, Geldbeträge und Eigennamen. ' +
-      'Beginne mit einem kurzen TL;DR. Stelle die Fakten danach kompakt als Markdown-Tabelle mit den Spalten "Wert", "Kontext" und "Einordnung" dar. ' +
-      'Nenne nur belastbare Angaben aus der Quelle und erfinde nichts.',
-  },
-  {
-    id: 'procontra',
-    name: 'Pro & Contra',
-    desc: 'Argumente, Vor- & Nachteile gegenübergestellt',
-    prompt:
-      'Identifiziere Argumente, Vor- und Nachteile, Chancen und Risiken zum Hauptthema. ' +
-      'Beginne mit einem kurzen TL;DR und stelle die Informationen danach kompakt dar, idealerweise als Markdown-Tabelle mit den Spalten "Pro", "Contra" und "Einordnung". ' +
-      'Erfinde keine Argumente und kennzeichne fehlende Gegenpositionen klar.',
-  },
-];
+// Default-Stile in der angegebenen Sprache (Default: aktive UI-Sprache).
+// Beim Seeden/Zurücksetzen werden die lokalisierten Texte übernommen.
+function defaultFocusPoints(lang) {
+  const tr = lang ? (key) => tIn(lang, key) : t;
+  return [
+    { id: 'standard', name: tr('focus.standard.name'), desc: tr('focus.standard.desc'), prompt: '', locked: true },
+    { id: 'zahlen', name: tr('focus.zahlen.name'), desc: tr('focus.zahlen.desc'), prompt: tr('focus.zahlen.prompt') },
+    { id: 'procontra', name: tr('focus.procontra.name'), desc: tr('focus.procontra.desc'), prompt: tr('focus.procontra.prompt') },
+  ];
+}
+function standardFocusPoint() {
+  return defaultFocusPoints()[0];
+}
+
+// Ein eingebauter Default-Stil gilt als "unverändert", wenn Name, Beschreibung
+// UND Anweisung exakt den Default-Werten in IRGENDEINER unterstützten Sprache
+// entsprechen. Sobald der Nutzer etwas anpasst, trifft das nicht mehr zu.
+function isPristineBuiltinDefault(item) {
+  if (item.locked) return false; // "standard" wird separat behandelt
+  return uiLanguageCodes().some((lang) => {
+    const def = defaultFocusPoints(lang).find((d) => d.id === item.id);
+    return def && item.name === def.name && item.desc === def.desc && item.prompt === def.prompt;
+  });
+}
+
+// Schreibt unveränderte eingebaute Default-Stile auf die aktive UI-Sprache um
+// (ohne Reset). Eigene/angepasste Stile bleiben unberührt.
+// Gibt true zurück, wenn sich etwas geändert hat.
+function localizePristineDefaults() {
+  const current = defaultFocusPoints();
+  let changed = false;
+  prefs.focusPoints = prefs.focusPoints.map((item) => {
+    if (!isPristineBuiltinDefault(item)) return item;
+    const def = current.find((d) => d.id === item.id);
+    if (item.name === def.name && item.desc === def.desc && item.prompt === def.prompt) return item;
+    changed = true;
+    return { ...def };
+  });
+  return changed;
+}
 
 const SUPPORTED_LANGS = new Set([
   'auto', 'de', 'en', 'es', 'fr', 'it', 'pt', 'nl', 'pl', 'tr', 'uk', 'ru',
@@ -108,6 +127,7 @@ let page = { text: '', title: '', url: '', kind: 'text' };
 let prefs = {
   fokus: 'standard',
   length: 'mittel',
+  uiLang: 'auto',
   zielsprache: 'auto',
   plain: false,
   autoRun: true,
@@ -130,7 +150,10 @@ let settingsRefreshPending = false;
 /* ====================================================================== */
 
 async function loadPrefs() {
-  const saved = await chrome.storage.local.get(['fokus', 'length', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses']);
+  const saved = await chrome.storage.local.get(['fokus', 'length', 'uiLang', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses']);
+  // UI-Sprache zuerst auflösen, damit die Default-Stile gleich lokalisiert geseedet werden.
+  if (saved.uiLang) prefs.uiLang = saved.uiLang;
+  setActiveUiLang(resolveUiLang(prefs.uiLang));
   if (saved.fokus) prefs.fokus = saved.fokus === 'ueberblick' ? 'standard' : saved.fokus;
   if (saved.length) prefs.length = saved.length;
   if (typeof saved.plain === 'boolean') prefs.plain = saved.plain;
@@ -146,10 +169,13 @@ async function loadPrefs() {
     ];
   }
   if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
+  // Unveränderte eingebaute Default-Stile auf die aktive UI-Sprache bringen.
+  if (localizePristineDefaults()) savePrefs();
 }
 function savePrefs() {
   chrome.storage.local.set({
     fokus: prefs.fokus, length: prefs.length, plain: prefs.plain,
+    uiLang: prefs.uiLang,
     zielsprache: prefs.zielsprache, autoRun: prefs.autoRun,
     fontSize: prefs.fontSize,
     focusPoints: prefs.focusPoints,
@@ -178,11 +204,67 @@ function targetLanguage() {
 function reflectPrefs() {
   if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
   renderSelects();
+  populateUiLangOptions();
   els.zielsprache.value = prefs.zielsprache;
   els.plain.checked = prefs.plain;
   els.autoRun.checked = prefs.autoRun;
   applyFontSize();
   renderCustomFocusList();
+}
+
+/* ====================================================================== */
+/* UI-Sprache (i18n)                                                      */
+/* ====================================================================== */
+
+// Überträgt alle statischen Katalogtexte in den DOM (data-i18n*-Attribute).
+function applyStaticI18n() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll('[data-i18n-aria-label]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel)); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+}
+
+// Baut die Optionen des UI-Sprachwählers aus UI_LANGUAGES + "Standard".
+function populateUiLangOptions() {
+  els.uiLang.innerHTML = '';
+  const auto = document.createElement('option');
+  auto.value = 'auto';
+  auto.textContent = t('lang.auto');
+  els.uiLang.appendChild(auto);
+  for (const { code, name } of UI_LANGUAGES) {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = name;
+    els.uiLang.appendChild(opt);
+  }
+  els.uiLang.value = prefs.uiLang;
+}
+
+// Wendet die aktuell gewählte UI-Sprache auf die gesamte Oberfläche an.
+function applyUiLanguage() {
+  setActiveUiLang(resolveUiLang(prefs.uiLang));
+  document.documentElement.lang = currentUiLang();
+  // Unveränderte Default-Stile direkt mitübersetzen (kein Reset nötig).
+  if (localizePristineDefaults()) savePrefs();
+  applyStaticI18n();
+  reflectPrefs();
+  refreshSourceLabel();
+  els.qaInput.placeholder = t('qa.placeholder');
+  if (els.summary.querySelector('.summary-empty')) showEmptySummaryState();
+}
+
+function numberLocale() {
+  return currentUiLang();
+}
+function wordsLabel(count) {
+  return `~${count.toLocaleString(numberLocale())} ${t('source.words')}`;
+}
+// Aktualisiert die Quell-Metazeile aus dem aktuellen page-Zustand (ohne Netz).
+function refreshSourceLabel() {
+  if (page.kind === 'video') els.sourceMeta.textContent = t('source.youtube');
+  else if (page.kind === 'pdf') els.sourceMeta.textContent = t('source.pdf');
+  else if (page.kind === 'selection' && page.words) els.sourceMeta.textContent = `${t('source.selection')} · ${wordsLabel(page.words)}`;
+  else if (page.kind === 'text' && page.words) els.sourceMeta.textContent = wordsLabel(page.words);
 }
 function applyFontSize() {
   els.summaryScroll.dataset.fontsize = prefs.fontSize;
@@ -192,7 +274,7 @@ function applyFontSize() {
 }
 
 function cloneDefaultFocusPoints() {
-  return DEFAULT_FOCUS_POINTS.map((item) => ({ ...item }));
+  return defaultFocusPoints().map((item) => ({ ...item }));
 }
 function sanitizeFocusPoints(items) {
   const clean = items
@@ -215,9 +297,9 @@ function sanitizeFocusPoints(items) {
     withoutDuplicateIds.push(item);
   }
   if (!withoutDuplicateIds.some((item) => item.id === 'standard')) {
-    withoutDuplicateIds.unshift({ ...DEFAULT_FOCUS_POINTS[0] });
+    withoutDuplicateIds.unshift(standardFocusPoint());
   }
-  return withoutDuplicateIds.map((item) => item.id === 'standard' ? { ...DEFAULT_FOCUS_POINTS[0] } : item);
+  return withoutDuplicateIds.map((item) => item.id === 'standard' ? standardFocusPoint() : item);
 }
 function focusOptions() {
   return prefs.focusPoints;
@@ -241,37 +323,41 @@ function focusPromptForBackend(id) {
   return focus?.prompt || '';
 }
 const LENGTH_OPTIONS = [
-  { value: 'kurz', name: 'Kurz' },
-  { value: 'mittel', name: 'Mittel' },
-  { value: 'lang', name: 'Lang' },
+  { value: 'kurz', labelKey: 'length.kurz' },
+  { value: 'mittel', labelKey: 'length.mittel' },
+  { value: 'lang', labelKey: 'length.lang' },
 ];
 const CHECK_SVG = '<svg class="opt-check" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
 
+// Der eingebaute "standard"-Stil wird live aus dem Katalog lokalisiert.
+function focusName(f) {
+  return f.id === 'standard' ? t('focus.standard.name') : f.name;
+}
 function focusDesc(f) {
-  return f.locked ? STANDARD_DESC : (f.desc || '');
+  return f.id === 'standard' ? t('focus.standard.desc') : (f.desc || '');
 }
 function renderFokusOptions() {
   return prefs.focusPoints.map((f) => {
     const desc = focusDesc(f);
     return `<button class="select-option" type="button" role="option" data-value="${escapeAttr(f.id)}" aria-selected="${f.id === prefs.fokus}">
-      <span class="opt-main"><span class="opt-name">${escapeHtml(f.name)}</span>${desc ? `<span class="opt-desc">${escapeHtml(desc)}</span>` : ''}</span>${CHECK_SVG}
+      <span class="opt-main"><span class="opt-name">${escapeHtml(focusName(f))}</span>${desc ? `<span class="opt-desc">${escapeHtml(desc)}</span>` : ''}</span>${CHECK_SVG}
     </button>`;
   }).join('');
 }
 function renderLengthOptions() {
   return LENGTH_OPTIONS.map((o) =>
     `<button class="select-option" type="button" role="option" data-value="${o.value}" aria-selected="${o.value === prefs.length}">
-      <span class="opt-main"><span class="opt-name">${o.name}</span></span>${CHECK_SVG}
+      <span class="opt-main"><span class="opt-name">${escapeHtml(t(o.labelKey))}</span></span>${CHECK_SVG}
     </button>`
   ).join('');
 }
 function updateFokusTrigger() {
   const f = getFocusById(prefs.fokus) || getFocusById('standard');
-  els.fokusValue.textContent = f ? f.name : 'Standard';
+  els.fokusValue.textContent = f ? focusName(f) : t('focus.standard.name');
 }
 function updateLengthTrigger() {
   const o = LENGTH_OPTIONS.find((x) => x.value === prefs.length) || LENGTH_OPTIONS[1];
-  els.lengthValue.textContent = o.name;
+  els.lengthValue.textContent = t(o.labelKey);
 }
 function renderSelects() {
   updateFokusTrigger();
@@ -401,7 +487,7 @@ function faviconFor(url) {
 }
 
 function setSource(title, meta, favUrl) {
-  els.sourceTitle.textContent = title || 'Seite';
+  els.sourceTitle.textContent = title || t('source.page');
   els.sourceMeta.textContent = meta || '';
   if (favUrl !== undefined) els.favicon.src = favUrl || '';
 }
@@ -414,7 +500,7 @@ async function loadCurrentPage() {
 
   if (!tab?.id || blocked) {
     page = { text: '', title: tab?.title || '', url: tabUrl, kind: 'text' };
-    setSource('Diese Seite kann nicht gelesen werden.', '', '');
+    setSource(t('source.cannotRead'), '', '');
     els.reloadBtn.disabled = true;
     clearSummaryState();
     return false;
@@ -425,12 +511,12 @@ async function loadCurrentPage() {
 
   if (isYouTube(tabUrl)) {
     page = { text: '', title: tab.title || '', url: tabUrl, kind: 'video' };
-    setSource(tab.title || tabUrl, 'YouTube-Video', favUrl);
+    setSource(tab.title || tabUrl, t('source.youtube'), favUrl);
     return true;
   }
   if (isPdfUrl(tabUrl)) {
     page = { text: '', title: tab.title || 'PDF', url: tabUrl, kind: 'pdf' };
-    setSource(tab.title || 'PDF-Dokument', 'PDF', favUrl);
+    setSource(tab.title || t('source.pdfDoc'), t('source.pdf'), favUrl);
     return true;
   }
 
@@ -440,21 +526,21 @@ async function loadCurrentPage() {
     page = { text: r.text || '', title: r.title || tab.title || '', url: r.url || tabUrl, kind: 'text', paperLike: Boolean(r.paperLike) };
   } catch {
     page = { text: '', title: tab.title, url: tabUrl, kind: 'text' };
-    setSource('Seite konnte nicht gelesen werden.', '', favUrl);
+    setSource(t('source.readFailed'), '', favUrl);
     els.reloadBtn.disabled = true;
     clearSummaryState();
     return false;
   }
 
   if (page.text.length < 40) {
-    setSource(page.title || 'Seite', 'Kaum Text gefunden', favUrl);
+    setSource(page.title || t('source.page'), t('source.littleText'), favUrl);
     els.reloadBtn.disabled = true;
     clearSummaryState();
     return false;
   }
 
-  const words = page.text.split(/\s+/).length;
-  setSource(page.title || 'Seite', `~${words.toLocaleString('de')} Wörter`, favUrl);
+  page.words = page.text.split(/\s+/).length;
+  setSource(page.title || t('source.page'), wordsLabel(page.words), favUrl);
   return true;
 }
 
@@ -464,12 +550,13 @@ async function loadCurrentPage() {
 
 function cacheKey(extra = {}) {
   const focus = extra.fokus ?? prefs.fokus;
-  const focusPoint = getFocusById(focus);
+  // Eingebaute Stile senden keinen customFocus → Key sprachunabhängig halten
+  // (nur die Stil-ID zählt). Eigene Stile fließen über ihren Prompt ein.
   return 'sum:' + JSON.stringify({
     v: SUMMARY_CACHE_VERSION,
     u: normalizeUrl(page.url),
     s: page.kind === 'selection' ? textFingerprint(page.text) : '',
-    f: focus, c: focusPoint?.prompt || '',
+    f: focus, c: focusPromptForBackend(focus),
     l: prefs.length, p: prefs.plain ? 1 : 0, z: targetLanguage(), k: page.kind,
   });
 }
@@ -490,7 +577,7 @@ function setQaReady(ready) {
   els.qaForm.classList.toggle('is-disabled', !ready);
   els.qaForm.setAttribute('aria-disabled', String(!ready));
   els.qaInput.disabled = !ready;
-  els.qaInput.placeholder = 'Rückfrage zur Seite stellen...';
+  els.qaInput.placeholder = t('qa.placeholder');
   els.qaForm.querySelector('.qa-send').disabled = !ready;
 }
 
@@ -523,15 +610,15 @@ function showEmptySummaryState() {
         </svg>
       </div>
       <div class="summary-empty-copy">
-        <h2>Noch keine Zusammenfassung</h2>
-        <p>Automatisch aktualisieren ist deaktiviert. Erstelle die Zusammenfassung, sobald du sie brauchst.</p>
+        <h2>${escapeHtml(t('summary.emptyTitle'))}</h2>
+        <p>${escapeHtml(t('summary.emptyDesc'))}</p>
       </div>
       <button class="mini-btn mini-btn--primary summary-empty-action" type="button" data-summary-action="generate">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
           <path d="M21 3v6h-6"></path>
         </svg>
-        <span>Zusammenfassung erstellen</span>
+        <span>${escapeHtml(t('summary.create'))}</span>
       </button>
     </div>`;
   els.summaryScroll.scrollTop = 0;
@@ -573,7 +660,7 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   setQaReady(false);
   els.qa.hidden = true;
   els.summary.setAttribute('aria-busy', 'true');
-  els.summary.innerHTML = '<div class="summary-loading"><span class="loading-spinner" aria-hidden="true"></span><span>Zusammenfassung wird erstellt...</span></div>';
+  els.summary.innerHTML = `<div class="summary-loading"><span class="loading-spinner" aria-hidden="true"></span><span>${escapeHtml(t('summary.loading'))}</span></div>`;
   els.summaryScroll.scrollTop = 0;
 
   const body = {
@@ -590,7 +677,7 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body), signal: abort.signal,
     });
-    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Backend nicht erreichbar.'); }
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || t('error.backendShort')); }
     await consumeSse(r, (delta) => {
       acc += delta;
       els.summary.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
@@ -610,11 +697,8 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
     els.result.hidden = true;
     hideSummaryActions();
     setQaReady(false);
-    showError(
-      e.message.includes('Failed to fetch') || e.message.includes('nicht erreichbar')
-        ? 'Backend nicht erreichbar. Läuft der Server auf http://localhost:3000?'
-        : e.message
-    );
+    const networkLike = e.message.includes('Failed to fetch') || e.message === t('error.backendShort');
+    showError(networkLike ? t('error.backendUnreachable') : e.message);
   } finally {
     els.reloadBtn.classList.remove('spinning');
   }
@@ -669,7 +753,7 @@ async function consumeSse(response, onDelta) {
       if (!dataLine) continue;
       let data;
       try { data = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
-      if (type === 'error') throw new Error(data.message || 'Fehler');
+      if (type === 'error') throw new Error(data.message || t('error.generic'));
       if (data.delta) onDelta(data.delta);
     }
   }
@@ -702,9 +786,10 @@ function ttsLang() {
   })[targetLanguage()] || 'de-DE';
 }
 function setTtsState(playing) {
+  const label = playing ? t('action.ttsStop') : t('action.tts');
   els.ttsBtn.setAttribute('aria-pressed', String(playing));
-  els.ttsBtn.title = playing ? 'Vorlesen stoppen' : 'Vorlesen';
-  els.ttsBtn.setAttribute('aria-label', playing ? 'Vorlesen stoppen' : 'Vorlesen');
+  els.ttsBtn.title = label;
+  els.ttsBtn.setAttribute('aria-label', label);
 }
 function speak() {
   if (!('speechSynthesis' in window) || !currentMarkdown) return;
@@ -780,7 +865,7 @@ function scrollResultToBottom() {
 async function askQuestion(question) {
   if (!question) return;
   if (!currentMarkdown) {
-    showError('Bitte warte, bis die Zusammenfassung fertig ist.');
+    showError(t('qa.waitSummary'));
     return;
   }
   clearError();
@@ -803,7 +888,7 @@ async function askQuestion(question) {
       }),
       signal: qaAbort.signal,
     });
-    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Backend-Fehler.'); }
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || t('error.backendError')); }
     await consumeSse(r, (delta) => {
       acc += delta;
       msgEl.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
@@ -919,6 +1004,12 @@ setupDropdown({
     onOptionChange();
   },
 });
+els.uiLang.addEventListener('change', () => {
+  // UI-Sprache wirkt nur auf die Oberfläche – keine Neugenerierung nötig.
+  prefs.uiLang = els.uiLang.value;
+  savePrefs();
+  applyUiLanguage();
+});
 els.zielsprache.addEventListener('change', () => { prefs.zielsprache = normalizeLanguage(els.zielsprache.value); onSettingsChange({ refreshSummary: true }); });
 els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onSettingsChange({ refreshSummary: true }); });
 els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; onSettingsChange(); });
@@ -993,8 +1084,8 @@ els.copyBtn.addEventListener('click', async () => {
   try {
     await copyText(currentMarkdown);
     clearError();
-    showToast('In die Zwischenablage kopiert');
-  } catch { showError('Zwischenablage nicht verfügbar.'); }
+    showToast(t('toast.copied'));
+  } catch { showError(t('error.clipboard')); }
 });
 
 els.downloadBtn.addEventListener('click', () => {
@@ -1028,7 +1119,7 @@ function openFocusDialog(id = '') {
   els.customFocusName.disabled = Boolean(item?.locked);
   els.customFocusDesc.disabled = Boolean(item?.locked);
   els.customFocusPrompt.disabled = Boolean(item?.locked);
-  els.customFocusEditorTitle.textContent = item ? 'Stil bearbeiten' : 'Neuen Stil erstellen';
+  els.customFocusEditorTitle.textContent = item ? t('editor.editTitle') : t('editor.newTitle');
   renderCustomFocusList();
   els.focusDialogScrim.hidden = false;
   els.focusDialog.hidden = false;
@@ -1051,14 +1142,14 @@ function renderCustomFocusList() {
     row.innerHTML = `
       <div class="focus-item-main">
         <strong>${escapeHtml(item.name)}</strong>
-        <span>${escapeHtml(item.locked ? STANDARD_DESC : (item.desc || item.prompt))}</span>
-        ${item.locked ? '<em class="focus-badge">Geschützt</em>' : ''}
+        <span>${escapeHtml(item.desc || item.prompt)}</span>
+        ${item.locked ? `<em class="focus-badge">${escapeHtml(t('focusList.protected'))}</em>` : ''}
       </div>
       <div class="focus-item-actions">
-        <button class="focus-item-btn" type="button" data-action="edit" title="${item.locked ? 'Standard kann nicht bearbeitet werden' : 'Bearbeiten'}" aria-label="${escapeAttr(item.name)} bearbeiten" ${item.locked ? 'disabled' : ''}>
+        <button class="focus-item-btn" type="button" data-action="edit" title="${escapeAttr(item.locked ? t('focusList.editLockedTitle') : t('focusList.editTitle'))}" aria-label="${escapeAttr(t('focusList.editAria', { name: item.name }))}" ${item.locked ? 'disabled' : ''}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </button>
-        <button class="focus-item-btn focus-item-btn--danger" type="button" data-action="delete" title="${item.locked ? 'Standard kann nicht gelöscht werden' : 'Löschen'}" aria-label="${escapeAttr(item.name)} löschen" ${item.locked ? 'disabled' : ''}>
+        <button class="focus-item-btn focus-item-btn--danger" type="button" data-action="delete" title="${escapeAttr(item.locked ? t('focusList.deleteLockedTitle') : t('focusList.deleteTitle'))}" aria-label="${escapeAttr(t('focusList.deleteAria', { name: item.name }))}" ${item.locked ? 'disabled' : ''}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
         </button>
       </div>
@@ -1068,7 +1159,7 @@ function renderCustomFocusList() {
   if (!visibleCount) {
     const empty = document.createElement('p');
     empty.className = 'custom-focus-empty';
-    empty.textContent = 'Keine bearbeitbaren Stile. Lege einen neuen Stil an oder stelle die Standard-Stile wieder her.';
+    empty.textContent = t('focusList.empty');
     els.customFocusList.appendChild(empty);
   }
 }
@@ -1078,7 +1169,7 @@ function saveCustomFocusFromForm() {
   const name = els.customFocusName.value.trim();
   const prompt = els.customFocusPrompt.value.trim();
   if (!name || !prompt) {
-    showError('Ein Stil braucht einen Namen und eine Anweisung.');
+    showError(t('error.styleNeedsNamePrompt'));
     return;
   }
   clearError();
@@ -1100,9 +1191,9 @@ async function deleteFocusPoint(id = els.customFocusId.value) {
   const item = prefs.focusPoints.find((f) => f.id === id);
   if (!item || item.locked) return;
   const ok = await askConfirm({
-    title: 'Stil löschen?',
-    text: `„${item.name}“ wird dauerhaft entfernt. Das lässt sich nicht rückgängig machen.`,
-    confirmLabel: 'Löschen',
+    title: t('confirm.deleteStyleTitle'),
+    text: t('confirm.deleteStyleText', { name: item.name }),
+    confirmLabel: t('confirm.delete'),
   });
   if (!ok) return;
   const deletedActiveFocus = prefs.fokus === id;
@@ -1115,9 +1206,9 @@ async function deleteFocusPoint(id = els.customFocusId.value) {
 }
 async function resetFocusPoints() {
   const ok = await askConfirm({
-    title: 'Stile zurücksetzen?',
-    text: 'Alle eigenen Stile werden gelöscht und die Standard-Stile wiederhergestellt.',
-    confirmLabel: 'Zurücksetzen',
+    title: t('confirm.resetStylesTitle'),
+    text: t('confirm.resetStylesText'),
+    confirmLabel: t('confirm.reset'),
   });
   if (!ok) return;
   prefs.focusPoints = cloneDefaultFocusPoints();
@@ -1144,9 +1235,9 @@ els.customFocusCancel.addEventListener('click', closeFocusDialog);
 els.focusReset.addEventListener('click', resetFocusPoints);
 els.cacheClearBtn.addEventListener('click', async () => {
   const ok = await askConfirm({
-    title: 'Cache leeren?',
-    text: 'Alle zwischengespeicherten Zusammenfassungen und Rückfragen werden gelöscht. Deine Einstellungen und Stile bleiben erhalten.',
-    confirmLabel: 'Leeren',
+    title: t('confirm.cacheTitle'),
+    text: t('confirm.cacheText'),
+    confirmLabel: t('confirm.clearShort'),
   });
   if (!ok) return;
   await chrome.storage.session.clear().catch(() => {});
@@ -1155,7 +1246,7 @@ els.cacheClearBtn.addEventListener('click', async () => {
   lastKey = null;
   els.qaThread.innerHTML = '';
   els.qa.hidden = true;
-  showToast('Cache geleert');
+  showToast(t('toast.cacheCleared'));
 });
 els.focusDialogClose.addEventListener('click', closeFocusDialog);
 els.focusDialogScrim.addEventListener('click', closeFocusDialog);
@@ -1165,7 +1256,7 @@ els.focusDialogScrim.addEventListener('click', closeFocusDialog);
 /* ====================================================================== */
 
 let confirmResolve = null;
-function askConfirm({ title, text, confirmLabel = 'Bestätigen' }) {
+function askConfirm({ title, text, confirmLabel = t('confirm.confirm') }) {
   els.confirmTitle.textContent = title;
   els.confirmText.textContent = text;
   els.confirmOk.textContent = confirmLabel;
@@ -1267,11 +1358,11 @@ async function consumePendingSelection() {
   if (!pendingSelection?.text) return;
   await chrome.storage.session.remove('pendingSelection');
   page = {
-    text: pendingSelection.text, title: pendingSelection.title || 'Auswahl',
+    text: pendingSelection.text, title: pendingSelection.title || t('source.selection'),
     url: pendingSelection.url || '', kind: 'selection',
   };
-  const words = page.text.split(/\s+/).length;
-  setSource(pendingSelection.title || 'Markierter Text', `Auswahl · ~${words.toLocaleString('de')} Wörter`, faviconFor(pendingSelection.url || ''));
+  page.words = page.text.split(/\s+/).length;
+  setSource(pendingSelection.title || t('source.selectedText'), `${t('source.selection')} · ${wordsLabel(page.words)}`, faviconFor(pendingSelection.url || ''));
   els.reloadBtn.disabled = false;
   summarize({ force: true });
 }
@@ -1303,6 +1394,8 @@ async function startHotReload() {
 
 (async function init() {
   await loadPrefs();
+  document.documentElement.lang = currentUiLang();
+  applyStaticI18n();
   reflectPrefs();
 
   const { pendingSelection } = await chrome.storage.session.get('pendingSelection');

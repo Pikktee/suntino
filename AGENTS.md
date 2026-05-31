@@ -72,7 +72,22 @@ The extension extracts page text by injecting `pageExtractor()` into the active 
 - The old textual status line is intentionally removed. Loading state is shown inside the summary area via `.summary-loading`.
 - Settings are a separate in-panel view, not a modal. Use `mainView` and `settingsPanel` to switch between the main screen and settings.
 - Settings changes that affect the summary are saved immediately but should only trigger regeneration when leaving the settings view.
-- Keep German UI strings.
+- The UI is multilingual (see "UI localization (i18n)"). Do NOT hardcode user-facing strings — add a key to `extension/i18n.js` and reference it via `t()` (JS) or a `data-i18n*` attribute (HTML).
+
+## UI localization (i18n)
+
+The interface is translatable at runtime, independent of the summary output language (`zielsprache`). All UI strings live centrally in `extension/i18n.js`.
+
+- `extension/i18n.js` is a **pure data/logic module with no DOM access**, so it is loaded both in the side panel (`<script src="i18n.js">` before `sidepanel.js`) and in the service worker (`background.js` via `importScripts('i18n.js')`). It is a classic script (not an ES module) — its top-level `const`/`function` declarations are visible to `sidepanel.js`.
+- `chrome.i18n`/`_locales` is deliberately NOT used: it binds the locale to the browser UI language and cannot be switched at runtime via a setting. The custom dictionary enables the in-app "Sprache der Oberfläche" picker.
+- Initial languages: `de`, `en`, `es`, `fr`. Add a language by appending one entry to `UI_LANGUAGES` (with its autonym `name`) and one block to `MESSAGES` with the full key set. Missing keys fall back to `UI_FALLBACK_LANG` (`en`).
+- The UI-language setting is `prefs.uiLang` (persisted in `chrome.storage.local`). Default `'auto'` resolves to the browser/OS language via `resolveUiLang()`, falling back to English. It is a separate setting from `zielsprache` and does NOT trigger summary regeneration on change (`applyUiLanguage()` only re-renders the UI).
+- HTML: `data-i18n="key"` sets `textContent`; `data-i18n-title` / `data-i18n-aria-label` / `data-i18n-placeholder` set the respective attribute. `applyStaticI18n()` walks these.
+- JS: use `t('key')`, or `t('key', { name })` for `{placeholder}` substitution. Always `escapeHtml`/`escapeAttr` translated values that are interpolated into HTML.
+- Default style names/descriptions are translated keys (`focus.standard.*`, `focus.zahlen.*`, `focus.procontra.*`). The locked `standard` style is localized live via `focusName()`/`focusDesc()`; `zahlen`/`procontra` are localized only at seed time and on "Zurücksetzen" (editing them makes them user content). User-created styles are never translated.
+- The `zielsprache` dropdown lists each language under its own autonym (static `<option>` labels); only its `auto` option ("Standard") is translated via `data-i18n`.
+- The context menu title in `background.js` is localized and re-applied when `prefs.uiLang` changes (via `chrome.storage.onChanged`).
+- `manifest.json` strings (name, description, command descriptions) are static and not part of the runtime switcher — they would require `_locales` (install-locale based) and are intentionally left in German.
 
 ## Custom focus points
 
