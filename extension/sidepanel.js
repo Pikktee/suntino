@@ -474,7 +474,7 @@ function setQaReady(ready) {
   els.qaForm.classList.toggle('is-disabled', !ready);
   els.qaForm.setAttribute('aria-disabled', String(!ready));
   els.qaInput.disabled = !ready;
-  els.qaInput.placeholder = ready ? 'Rückfrage zur Seite stellen...' : 'Zusammenfassung wird benötigt...';
+  els.qaInput.placeholder = 'Rückfrage zur Seite stellen...';
   els.qaForm.querySelector('.qa-send').disabled = !ready;
 }
 
@@ -485,6 +485,40 @@ function clearSummaryState() {
   els.summary.innerHTML = '';
   els.summaryScroll.scrollTop = 0;
   els.summary.removeAttribute('aria-busy');
+  hideSummaryActions();
+  resetQa();
+  setQaReady(false);
+  stopTts();
+}
+
+function showEmptySummaryState() {
+  currentMarkdown = '';
+  lastFokusUsed = null;
+  els.result.hidden = false;
+  els.summary.removeAttribute('aria-busy');
+  els.summary.innerHTML = `
+    <div class="summary-empty" role="status">
+      <div class="summary-empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <path d="M14 2v6h6"></path>
+          <path d="M8 13h8"></path>
+          <path d="M8 17h5"></path>
+        </svg>
+      </div>
+      <div class="summary-empty-copy">
+        <h2>Noch keine Zusammenfassung</h2>
+        <p>Automatisch aktualisieren ist deaktiviert. Erstelle die Zusammenfassung, sobald du sie brauchst.</p>
+      </div>
+      <button class="mini-btn mini-btn--primary summary-empty-action" type="button" data-summary-action="generate">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+          <path d="M21 3v6h-6"></path>
+        </svg>
+        <span>Zusammenfassung erstellen</span>
+      </button>
+    </div>`;
+  els.summaryScroll.scrollTop = 0;
   hideSummaryActions();
   resetQa();
   setQaReady(false);
@@ -581,15 +615,16 @@ function showSummary(markdown, fokus, fromCache) {
 }
 
 function showSummaryActions() {
-  els.ttsBtn.hidden = false;
-  els.shareBtn.hidden = false;
+  const hasSummary = Boolean(currentMarkdown);
+  els.ttsBtn.disabled = !hasSummary;
+  els.shareBtn.disabled = !hasSummary;
   setQaReady(Boolean(currentMarkdown));
 }
 
 function hideSummaryActions() {
   closeShareMenu();
-  els.ttsBtn.hidden = true;
-  els.shareBtn.hidden = true;
+  els.ttsBtn.disabled = true;
+  els.shareBtn.disabled = true;
 }
 
 async function consumeSse(response, onDelta) {
@@ -767,6 +802,11 @@ els.qaForm.addEventListener('submit', (e) => {
   askQuestion(q);
 });
 
+els.summary.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-summary-action="generate"]')) return;
+  summarize({ force: true });
+});
+
 /* ====================================================================== */
 /* Optionen-Interaktion                                                   */
 /* ====================================================================== */
@@ -898,6 +938,7 @@ async function copyText(text) {
 }
 
 function openShareMenu() {
+  if (!currentMarkdown || els.shareBtn.disabled) return;
   if (openDropdownKey) closeDropdown(openDropdownKey);
   els.shareMenu.hidden = false;
   els.shareBtn.setAttribute('aria-expanded', 'true');
@@ -1176,6 +1217,7 @@ function scheduleTabSwitch(delay = 500) {
     const cached = await cacheGet(key);
     if (cached?.markdown) { showSummary(cached.markdown, prefs.fokus, true); lastKey = key; return; }
     if (prefs.autoRun) summarize();
+    else showEmptySummaryState();
   }, delay);
 }
 
@@ -1247,7 +1289,8 @@ async function startHotReload() {
       const key = cacheKey();
       const cached = await cacheGet(key);
       if (cached?.markdown) { showSummary(cached.markdown, prefs.fokus, true); lastKey = key; }
-      else summarize();
+      else if (prefs.autoRun) summarize();
+      else showEmptySummaryState();
     }
   }
   startHotReload();
