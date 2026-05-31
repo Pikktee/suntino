@@ -130,7 +130,7 @@ let prefs = {
   uiLang: 'auto',
   zielsprache: 'auto',
   plain: false,
-  autoRun: true,
+  autoRun: false,
   fontSize: 'normal',
   focusPoints: cloneDefaultFocusPoints(),
 };
@@ -1406,9 +1406,10 @@ async function startHotReload() {
     if (ok) {
       const key = cacheKey();
       const cached = await cacheGet(key);
+      // Beim Öffnen des Side Panels immer zusammenfassen – unabhängig von
+      // "Automatisch aktualisieren" (das steuert nur den Tab-Wechsel).
       if (cached?.markdown) { showSummary(cached.markdown, prefs.fokus, true); lastKey = key; }
-      else if (prefs.autoRun) summarize();
-      else showEmptySummaryState();
+      else summarize();
     }
   }
   startHotReload();
