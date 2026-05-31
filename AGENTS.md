@@ -38,6 +38,11 @@ server.js      ← Express backend (single file)
   /api/qa           ← SSE-streamed Q&A about the page
   /api/health       ← health + current model info
   /api/version      ← file-change signatures for hot-reload
+
+prompts/       ← Mustache prompt templates used by server.js
+  summary/     ← summarization system/instruction/style templates
+  qa/          ← Q&A system/source templates
+  partials/    ← shared language, plain-language, source wrappers
 ```
 
 The extension extracts page text by injecting `pageExtractor()` into the active tab via `chrome.scripting.executeScript`. For YouTube/PDF URLs, it sends only the URL to the backend (no text extraction). Selections from the context menu are routed via `chrome.storage.session`.
@@ -67,6 +72,12 @@ The extension extracts page text by injecting `pageExtractor()` into the active 
 Users can add, edit, and delete focus points in the settings panel. They are persisted in `chrome.storage.local` under `focusPoints` and shown in the focus dropdown.
 
 For non-locked focus summaries, `extension/sidepanel.js` sends `customFocus` to `/api/summarize`; `server.js` folds it into the system prompt while preserving the base safety rule that source material is data, not instructions.
+
+## Backend prompts
+
+Backend prompts are Mustache templates in `prompts/` and are rendered by `server.js` on each request. Use triple braces (`{{{value}}}`) for prompt/source placeholders that must not be HTML-escaped.
+
+Built-in summary styles live in `prompts/summary/styles/` and must match the built-in backend ids in `BUILTIN_FOCUS`.
 
 Custom focus limits currently enforced in the client/server:
 
