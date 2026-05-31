@@ -602,12 +602,7 @@ function showEmptySummaryState() {
   els.summary.innerHTML = `
     <div class="summary-empty" role="status">
       <div class="summary-empty-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <path d="M14 2v6h6"></path>
-          <path d="M8 13h8"></path>
-          <path d="M8 17h5"></path>
-        </svg>
+        <img src="icons/icon.svg" width="52" height="52" alt="">
       </div>
       <div class="summary-empty-copy">
         <h2>${escapeHtml(t('summary.emptyTitle'))}</h2>

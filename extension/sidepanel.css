@@ -276,9 +276,10 @@ body {
   color: var(--ink-soft);
 }
 .summary-empty-icon {
-  display: grid; place-items: center; width: 42px; height: 42px;
-  border: 1px solid var(--line); border-radius: var(--r-md);
-  background: var(--surface-2); color: var(--accent);
+  display: grid; place-items: center; width: 52px; height: 52px;
+}
+.summary-empty-icon img {
+  display: block; border-radius: 11px;
 }
 .summary-empty-copy {
   display: grid; gap: 4px; max-width: 300px;
