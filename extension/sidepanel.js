@@ -5,16 +5,22 @@ const els = {
   favicon: document.getElementById('favicon'),
   sourceTitle: document.getElementById('sourceTitle'),
   sourceMeta: document.getElementById('sourceMeta'),
-  fokusSelect: document.getElementById('fokusSelect'),
-  lengthSelect: document.getElementById('lengthSelect'),
+  fokusTrigger: document.getElementById('fokusTrigger'),
+  fokusValue: document.getElementById('fokusValue'),
+  fokusMenu: document.getElementById('fokusMenu'),
+  lengthTrigger: document.getElementById('lengthTrigger'),
+  lengthValue: document.getElementById('lengthValue'),
+  lengthMenu: document.getElementById('lengthMenu'),
   zielsprache: document.getElementById('zielsprache'),
   plain: document.getElementById('plain'),
   autoRun: document.getElementById('autoRun'),
+  fontSizeSeg: document.getElementById('fontSizeSeg'),
   reloadBtn: document.getElementById('reloadBtn'),
   result: document.getElementById('result'),
   summaryScroll: document.getElementById('summaryScroll'),
   summary: document.getElementById('summary'),
-  summaryTools: document.getElementById('summaryTools'),
+  shareBtn: document.getElementById('shareBtn'),
+  shareMenu: document.getElementById('shareMenu'),
   copyBtn: document.getElementById('copyBtn'),
   downloadBtn: document.getElementById('downloadBtn'),
   ttsBtn: document.getElementById('ttsBtn'),
@@ -33,6 +39,7 @@ const els = {
   customFocusEditorTitle: document.getElementById('customFocusEditorTitle'),
   customFocusId: document.getElementById('customFocusId'),
   customFocusName: document.getElementById('customFocusName'),
+  customFocusDesc: document.getElementById('customFocusDesc'),
   customFocusPrompt: document.getElementById('customFocusPrompt'),
   customFocusNew: document.getElementById('customFocusNew'),
   customFocusDelete: document.getElementById('customFocusDelete'),
@@ -40,6 +47,13 @@ const els = {
   focusDialog: document.getElementById('focusDialog'),
   focusDialogScrim: document.getElementById('focusDialogScrim'),
   focusDialogClose: document.getElementById('focusDialogClose'),
+  // Bestätigungsdialog
+  confirmScrim: document.getElementById('confirmScrim'),
+  confirmDialog: document.getElementById('confirmDialog'),
+  confirmTitle: document.getElementById('confirmTitle'),
+  confirmText: document.getElementById('confirmText'),
+  confirmOk: document.getElementById('confirmOk'),
+  confirmCancel: document.getElementById('confirmCancel'),
 };
 
 function showError(msg) { els.error.textContent = msg; els.error.hidden = false; }
@@ -56,11 +70,13 @@ function showToast(msg) {
 /* State                                                                  */
 /* ====================================================================== */
 
+const STANDARD_DESC = 'Ausgewogene, strukturierte Zusammenfassung';
 const DEFAULT_FOCUS_POINTS = [
-  { id: 'standard', name: 'Standard', prompt: '', locked: true },
+  { id: 'standard', name: 'Standard', desc: STANDARD_DESC, prompt: '', locked: true },
   {
     id: 'zahlen',
     name: 'Zahlen & Fakten',
+    desc: 'Konkrete Zahlen, Daten & Fakten als Tabelle',
     prompt:
       'Extrahiere konkrete Zahlen, Daten, Fakten, Messwerte, Zeitangaben, Geldbeträge und Eigennamen. ' +
       'Beginne mit einem kurzen TL;DR. Stelle die Fakten danach kompakt als Markdown-Tabelle mit den Spalten "Wert", "Kontext" und "Einordnung" dar. ' +
@@ -69,6 +85,7 @@ const DEFAULT_FOCUS_POINTS = [
   {
     id: 'procontra',
     name: 'Pro & Contra',
+    desc: 'Argumente, Vor- & Nachteile gegenübergestellt',
     prompt:
       'Identifiziere Argumente, Vor- und Nachteile, Chancen und Risiken zum Hauptthema. ' +
       'Beginne mit einem kurzen TL;DR und stelle die Informationen danach kompakt dar, idealerweise als Markdown-Tabelle mit den Spalten "Pro", "Contra" und "Einordnung". ' +
@@ -152,13 +169,19 @@ function targetLanguage() {
   return prefs.zielsprache === 'auto' ? systemLanguage() : normalizeLanguage(prefs.zielsprache);
 }
 function reflectPrefs() {
-  renderFocusSelect();
-  els.fokusSelect.value = getFocusById(prefs.fokus) ? prefs.fokus : 'standard';
-  els.lengthSelect.value = prefs.length;
+  if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
+  renderSelects();
   els.zielsprache.value = prefs.zielsprache;
   els.plain.checked = prefs.plain;
   els.autoRun.checked = prefs.autoRun;
+  applyFontSize();
   renderCustomFocusList();
+}
+function applyFontSize() {
+  els.summaryScroll.dataset.fontsize = prefs.fontSize;
+  els.fontSizeSeg.querySelectorAll('.seg-btn').forEach((btn) => {
+    btn.setAttribute('aria-checked', String(btn.dataset.size === prefs.fontSize));
+  });
 }
 
 function cloneDefaultFocusPoints() {
@@ -170,6 +193,7 @@ function sanitizeFocusPoints(items) {
     .map((item) => ({
       id: String(item.id || newFocusId()).replace(/[^a-z0-9_-]/gi, '').slice(0, 60),
       name: String(item.name || '').trim().slice(0, 38),
+      desc: String(item.desc || '').trim().slice(0, 80),
       prompt: String(item.prompt || '').trim().slice(0, 1800),
       locked: item.id === 'standard' || Boolean(item.locked && item.id === 'standard'),
     }))
@@ -204,11 +228,44 @@ function focusPromptForBackend(id) {
   const focus = getFocusById(id);
   return focus?.locked ? '' : focus?.prompt || '';
 }
-function renderFocusSelect() {
-  const current = els.fokusSelect.value || prefs.fokus;
-  els.fokusSelect.innerHTML = '';
-  prefs.focusPoints.forEach((f) => els.fokusSelect.appendChild(new Option(f.name, f.id)));
-  els.fokusSelect.value = getFocusById(current) ? current : prefs.fokus;
+const LENGTH_OPTIONS = [
+  { value: 'kurz', name: 'Kurz' },
+  { value: 'mittel', name: 'Mittel' },
+  { value: 'lang', name: 'Lang' },
+];
+const CHECK_SVG = '<svg class="opt-check" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function focusDesc(f) {
+  return f.locked ? STANDARD_DESC : (f.desc || '');
+}
+function renderFokusOptions() {
+  return prefs.focusPoints.map((f) => {
+    const desc = focusDesc(f);
+    return `<button class="select-option" type="button" role="option" data-value="${escapeAttr(f.id)}" aria-selected="${f.id === prefs.fokus}">
+      <span class="opt-main"><span class="opt-name">${escapeHtml(f.name)}</span>${desc ? `<span class="opt-desc">${escapeHtml(desc)}</span>` : ''}</span>${CHECK_SVG}
+    </button>`;
+  }).join('');
+}
+function renderLengthOptions() {
+  return LENGTH_OPTIONS.map((o) =>
+    `<button class="select-option" type="button" role="option" data-value="${o.value}" aria-selected="${o.value === prefs.length}">
+      <span class="opt-main"><span class="opt-name">${o.name}</span></span>${CHECK_SVG}
+    </button>`
+  ).join('');
+}
+function updateFokusTrigger() {
+  const f = getFocusById(prefs.fokus) || getFocusById('standard');
+  els.fokusValue.textContent = f ? f.name : 'Standard';
+}
+function updateLengthTrigger() {
+  const o = LENGTH_OPTIONS.find((x) => x.value === prefs.length) || LENGTH_OPTIONS[1];
+  els.lengthValue.textContent = o.name;
+}
+function renderSelects() {
+  updateFokusTrigger();
+  updateLengthTrigger();
+  if (!els.fokusMenu.hidden) els.fokusMenu.innerHTML = renderFokusOptions();
+  if (!els.lengthMenu.hidden) els.lengthMenu.innerHTML = renderLengthOptions();
 }
 
 /* ====================================================================== */
@@ -668,20 +725,106 @@ function onSettingsChange({ refreshSummary = false } = {}) {
   if (refreshSummary) settingsRefreshPending = true;
 }
 
-els.fokusSelect.addEventListener('change', () => {
-  prefs.fokus = els.fokusSelect.value;
-  prefs._userTouchedFokus = true;
-  reflectPrefs();
-  onOptionChange();
+/* ---- Custom-Dropdowns (Stil & Länge) ---- */
+const dropdowns = new Map();
+let openDropdownKey = null;
+
+function setupDropdown({ key, trigger, menu, render, onSelect }) {
+  const ctrl = { trigger, menu, render, onSelect };
+  dropdowns.set(key, ctrl);
+  trigger.addEventListener('click', () => toggleDropdown(key));
+  menu.addEventListener('click', (e) => {
+    const opt = e.target.closest('[data-value]');
+    if (!opt) return;
+    closeDropdown(key);
+    trigger.focus();
+    ctrl.onSelect(opt.dataset.value);
+  });
+}
+function openDropdown(key) {
+  if (openDropdownKey && openDropdownKey !== key) closeDropdown(openDropdownKey);
+  closeShareMenu();
+  const ctrl = dropdowns.get(key);
+  ctrl.menu.innerHTML = ctrl.render();
+  ctrl.menu.hidden = false;
+  ctrl.trigger.setAttribute('aria-expanded', 'true');
+  openDropdownKey = key;
+  document.addEventListener('click', onDropdownOutside, true);
+  document.addEventListener('keydown', onDropdownKey);
+  (ctrl.menu.querySelector('[aria-selected="true"]') || ctrl.menu.querySelector('[data-value]'))?.focus();
+}
+function closeDropdown(key) {
+  const ctrl = dropdowns.get(key);
+  if (!ctrl || ctrl.menu.hidden) return;
+  ctrl.menu.hidden = true;
+  ctrl.trigger.setAttribute('aria-expanded', 'false');
+  if (openDropdownKey === key) openDropdownKey = null;
+  document.removeEventListener('click', onDropdownOutside, true);
+  document.removeEventListener('keydown', onDropdownKey);
+}
+function toggleDropdown(key) {
+  const ctrl = dropdowns.get(key);
+  ctrl.menu.hidden ? openDropdown(key) : closeDropdown(key);
+}
+function onDropdownOutside(e) {
+  if (!openDropdownKey) return;
+  const ctrl = dropdowns.get(openDropdownKey);
+  if (!ctrl.trigger.contains(e.target) && !ctrl.menu.contains(e.target)) closeDropdown(openDropdownKey);
+}
+function onDropdownKey(e) {
+  if (!openDropdownKey) return;
+  const ctrl = dropdowns.get(openDropdownKey);
+  if (e.key === 'Escape') {
+    const t = ctrl.trigger; closeDropdown(openDropdownKey); t.focus();
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const opts = [...ctrl.menu.querySelectorAll('[data-value]')];
+    const idx = opts.indexOf(document.activeElement);
+    const next = e.key === 'ArrowDown' ? Math.min(opts.length - 1, idx + 1) : Math.max(0, idx - 1);
+    opts[idx < 0 ? 0 : next]?.focus();
+  }
+}
+
+setupDropdown({
+  key: 'fokus', trigger: els.fokusTrigger, menu: els.fokusMenu, render: renderFokusOptions,
+  onSelect: (value) => {
+    prefs.fokus = value;
+    prefs._userTouchedFokus = true;
+    reflectPrefs();
+    onOptionChange();
+  },
 });
-els.lengthSelect.addEventListener('change', () => {
-  prefs.length = els.lengthSelect.value;
-  reflectPrefs();
-  onOptionChange();
+setupDropdown({
+  key: 'length', trigger: els.lengthTrigger, menu: els.lengthMenu, render: renderLengthOptions,
+  onSelect: (value) => {
+    prefs.length = value;
+    reflectPrefs();
+    onOptionChange();
+  },
 });
 els.zielsprache.addEventListener('change', () => { prefs.zielsprache = normalizeLanguage(els.zielsprache.value); onSettingsChange({ refreshSummary: true }); });
 els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onSettingsChange({ refreshSummary: true }); });
 els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; onSettingsChange(); });
+
+function setFontSize(size) {
+  if (!FONT_SIZES.has(size) || size === prefs.fontSize) return;
+  prefs.fontSize = size;
+  applyFontSize();
+  savePrefs();
+}
+els.fontSizeSeg.addEventListener('click', (e) => {
+  const btn = e.target.closest('.seg-btn');
+  if (btn) setFontSize(btn.dataset.size);
+});
+els.fontSizeSeg.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  e.preventDefault();
+  const order = ['normal', 'gross', 'sehrgross'];
+  const idx = order.indexOf(prefs.fontSize);
+  const next = e.key === 'ArrowRight' ? Math.min(order.length - 1, idx + 1) : Math.max(0, idx - 1);
+  setFontSize(order[next]);
+  els.fontSizeSeg.querySelector(`[data-size="${order[next]}"]`)?.focus();
+});
 
 els.reloadBtn.addEventListener('click', () => summarize({ force: true }));
 
@@ -762,8 +905,10 @@ function openFocusDialog(id = '') {
   const item = prefs.focusPoints.find((f) => f.id === id);
   els.customFocusId.value = item?.id || '';
   els.customFocusName.value = item?.name || '';
+  els.customFocusDesc.value = item?.desc || '';
   els.customFocusPrompt.value = item?.prompt || '';
   els.customFocusName.disabled = Boolean(item?.locked);
+  els.customFocusDesc.disabled = Boolean(item?.locked);
   els.customFocusPrompt.disabled = Boolean(item?.locked);
   els.customFocusDelete.hidden = !item || item.locked;
   els.customFocusEditorTitle.textContent = item ? 'Stil bearbeiten' : 'Neuen Stil erstellen';
@@ -789,7 +934,7 @@ function renderCustomFocusList() {
     row.innerHTML = `
       <div class="focus-item-main">
         <strong>${escapeHtml(item.name)}</strong>
-        <span>${escapeHtml(item.locked ? 'Ausgewogene Basis-Zusammenfassung.' : item.prompt)}</span>
+        <span>${escapeHtml(item.locked ? STANDARD_DESC : (item.desc || item.prompt))}</span>
         ${item.locked ? '<em class="focus-badge">Geschützt</em>' : ''}
       </div>
       <div class="focus-item-actions">
@@ -821,7 +966,8 @@ function saveCustomFocusFromForm() {
   }
   clearError();
   const id = els.customFocusId.value || newFocusId();
-  const item = { id, name: name.slice(0, 38), prompt: prompt.slice(0, 1800) };
+  const desc = els.customFocusDesc.value.trim();
+  const item = { id, name: name.slice(0, 38), desc: desc.slice(0, 80), prompt: prompt.slice(0, 1800) };
   const idx = prefs.focusPoints.findIndex((f) => f.id === id);
   if (idx >= 0) prefs.focusPoints[idx] = item;
   else prefs.focusPoints.push(item);
@@ -832,10 +978,16 @@ function saveCustomFocusFromForm() {
   closeFocusDialog();
   settingsRefreshPending = true;
 }
-function deleteFocusPoint(id = els.customFocusId.value) {
+async function deleteFocusPoint(id = els.customFocusId.value) {
   if (!id) return;
   const item = prefs.focusPoints.find((f) => f.id === id);
   if (!item || item.locked) return;
+  const ok = await askConfirm({
+    title: 'Stil löschen?',
+    text: `„${item.name}“ wird dauerhaft entfernt. Das lässt sich nicht rückgängig machen.`,
+    confirmLabel: 'Löschen',
+  });
+  if (!ok) return;
   const deletedActiveFocus = prefs.fokus === id;
   prefs.focusPoints = prefs.focusPoints.filter((f) => f.id !== id);
   if (deletedActiveFocus) prefs.fokus = 'standard';
@@ -844,7 +996,13 @@ function deleteFocusPoint(id = els.customFocusId.value) {
   closeFocusDialog();
   if (deletedActiveFocus || lastFokusUsed === id) settingsRefreshPending = true;
 }
-function resetFocusPoints() {
+async function resetFocusPoints() {
+  const ok = await askConfirm({
+    title: 'Stile zurücksetzen?',
+    text: 'Alle eigenen Stile werden gelöscht und die Standard-Stile wiederhergestellt.',
+    confirmLabel: 'Zurücksetzen',
+  });
+  if (!ok) return;
   prefs.focusPoints = cloneDefaultFocusPoints();
   if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
   savePrefs();
@@ -871,11 +1029,44 @@ els.focusDialogClose.addEventListener('click', closeFocusDialog);
 els.focusDialogScrim.addEventListener('click', closeFocusDialog);
 
 /* ====================================================================== */
+/* Bestätigungsdialog                                                     */
+/* ====================================================================== */
+
+let confirmResolve = null;
+function askConfirm({ title, text, confirmLabel = 'Bestätigen' }) {
+  els.confirmTitle.textContent = title;
+  els.confirmText.textContent = text;
+  els.confirmOk.textContent = confirmLabel;
+  els.confirmScrim.hidden = false;
+  els.confirmDialog.hidden = false;
+  els.confirmOk.focus();
+  document.addEventListener('keydown', onConfirmKey);
+  return new Promise((resolve) => { confirmResolve = resolve; });
+}
+function settleConfirm(result) {
+  if (!confirmResolve) return;
+  els.confirmScrim.hidden = true;
+  els.confirmDialog.hidden = true;
+  document.removeEventListener('keydown', onConfirmKey);
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  resolve(result);
+}
+function onConfirmKey(e) {
+  if (e.key === 'Escape') settleConfirm(false);
+  else if (e.key === 'Enter') settleConfirm(true);
+}
+els.confirmOk.addEventListener('click', () => settleConfirm(true));
+els.confirmCancel.addEventListener('click', () => settleConfirm(false));
+els.confirmScrim.addEventListener('click', () => settleConfirm(false));
+
+/* ====================================================================== */
 /* Einstellungen-Popover                                                  */
 /* ====================================================================== */
 
 function openSettings() {
   settingsRefreshPending = false;
+  closeShareMenu();
   els.mainView.hidden = true;
   els.settingsPanel.hidden = false;
   els.settingsBtn.setAttribute('aria-expanded', 'true');

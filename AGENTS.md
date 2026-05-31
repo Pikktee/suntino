@@ -82,8 +82,11 @@ Built-in summary styles live in `prompts/summary/styles/` and must match the bui
 Custom focus limits currently enforced in the client/server:
 
 - name: 38 chars
+- desc (optional short description shown in the style dropdown): 80 chars
 - prompt: 1800 chars
 - max stored custom focus points: 20
+
+Focus points carry an optional `desc` field (client-only, persisted in `focusPoints`) that is shown under the name in the style dropdown; it is not sent to the backend.
 
 ## Model selection
 
