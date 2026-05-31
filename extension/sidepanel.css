@@ -150,7 +150,7 @@ body {
    ============================================================ */
 .control-strip {
   flex: none;
-  display: grid; grid-template-columns: minmax(0, 1fr) 120px 42px; gap: 8px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 132px 42px; gap: 8px;
 }
 .settings-control {
   display: grid; place-items: center; width: 42px; height: 42px;
@@ -196,7 +196,7 @@ body {
   background: var(--surface); box-shadow: var(--sh-lg);
   animation: pop .16s var(--ease-spring);
 }
-.select-field--small .select-menu { min-width: 124px; }
+.select-field--small .select-menu { min-width: 132px; }
 .select-option {
   display: flex; align-items: center; gap: 8px; width: 100%;
   appearance: none; cursor: pointer; text-align: left;
