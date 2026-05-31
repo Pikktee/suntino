@@ -1,40 +1,45 @@
 const BACKEND = 'http://localhost:3000';
 
 const els = {
+  mainView: document.getElementById('mainView'),
   favicon: document.getElementById('favicon'),
   sourceTitle: document.getElementById('sourceTitle'),
   sourceMeta: document.getElementById('sourceMeta'),
-  fokusGrid: document.getElementById('fokusGrid'),
-  lengthSeg: document.getElementById('lengthSeg'),
-  segIndicator: document.getElementById('segIndicator'),
+  fokusSelect: document.getElementById('fokusSelect'),
+  lengthSelect: document.getElementById('lengthSelect'),
   zielsprache: document.getElementById('zielsprache'),
   plain: document.getElementById('plain'),
   autoRun: document.getElementById('autoRun'),
   reloadBtn: document.getElementById('reloadBtn'),
   result: document.getElementById('result'),
   summary: document.getElementById('summary'),
+  summaryTools: document.getElementById('summaryTools'),
   copyBtn: document.getElementById('copyBtn'),
   downloadBtn: document.getElementById('downloadBtn'),
   ttsBtn: document.getElementById('ttsBtn'),
-  askBtn: document.getElementById('askBtn'),
-  fallbackBtn: document.getElementById('fallbackBtn'),
   qa: document.getElementById('qa'),
   qaThread: document.getElementById('qaThread'),
   qaForm: document.getElementById('qaForm'),
   qaInput: document.getElementById('qaInput'),
-  status: document.getElementById('status'),
   error: document.getElementById('error'),
   // Settings
   settingsBtn: document.getElementById('settingsBtn'),
   settingsClose: document.getElementById('settingsClose'),
   settingsPanel: document.getElementById('settingsPanel'),
-  settingsScrim: document.getElementById('settingsScrim'),
+  customFocusList: document.getElementById('customFocusList'),
+  customFocusForm: document.getElementById('customFocusForm'),
+  customFocusEditorTitle: document.getElementById('customFocusEditorTitle'),
+  customFocusId: document.getElementById('customFocusId'),
+  customFocusName: document.getElementById('customFocusName'),
+  customFocusPrompt: document.getElementById('customFocusPrompt'),
+  customFocusNew: document.getElementById('customFocusNew'),
+  customFocusDelete: document.getElementById('customFocusDelete'),
+  focusReset: document.getElementById('focusReset'),
+  focusDialog: document.getElementById('focusDialog'),
+  focusDialogScrim: document.getElementById('focusDialogScrim'),
+  focusDialogClose: document.getElementById('focusDialogClose'),
 };
 
-function setStatus(msg, kind = '') {
-  els.status.textContent = msg || '';
-  els.status.className = 'status' + (kind ? ' ' + kind : '');
-}
 function showError(msg) { els.error.textContent = msg; els.error.hidden = false; }
 function clearError() { els.error.hidden = true; els.error.textContent = ''; }
 
@@ -42,15 +47,39 @@ function clearError() { els.error.hidden = true; els.error.textContent = ''; }
 /* State                                                                  */
 /* ====================================================================== */
 
-const LENGTH_ORDER = ['kurz', 'mittel', 'lang'];
+const DEFAULT_FOCUS_POINTS = [
+  { id: 'standard', name: 'Standard', prompt: '', locked: true },
+  {
+    id: 'zahlen',
+    name: 'Zahlen & Fakten',
+    prompt:
+      'Extrahiere konkrete Zahlen, Daten, Fakten, Messwerte, Zeitangaben, Geldbeträge und Eigennamen. ' +
+      'Beginne mit einem kurzen TL;DR und liste danach die belastbaren Zahlen & Fakten mit Kontext auf. Erfinde nichts.',
+  },
+  {
+    id: 'todos',
+    name: 'To-dos',
+    prompt:
+      'Extrahiere ausschließlich Handlungsanweisungen, Aufgaben, Schritte, Empfehlungen oder Aufrufe zum Handeln. ' +
+      'Gib sie als Markdown-Checkliste im Imperativ aus. Wenn es keine To-dos gibt, sage das ehrlich.',
+  },
+  {
+    id: 'procontra',
+    name: 'Pro & Contra',
+    prompt:
+      'Identifiziere Argumente, Vor- und Nachteile, Chancen und Risiken zum Hauptthema. ' +
+      'Strukturiere die Antwort mit den Abschnitten Pro und Contra. Erfinde keine Argumente.',
+  },
+];
 
 let page = { text: '', title: '', url: '', kind: 'text' };
 let prefs = {
-  fokus: 'ueberblick',
+  fokus: 'standard',
   length: 'mittel',
   zielsprache: 'de',
   plain: false,
   autoRun: true,
+  focusPoints: cloneDefaultFocusPoints(),
 };
 let lastKey = null;
 let currentMarkdown = '';
@@ -61,36 +90,93 @@ let qaHistory = [];
 let qaCurrentUrlKey = null;
 let tabSwitchTimer = null;
 let currentTabId = null;
+let settingsRefreshPending = false;
 
 /* ====================================================================== */
 /* Persistenz                                                             */
 /* ====================================================================== */
 
 async function loadPrefs() {
-  const saved = await chrome.storage.local.get(['fokus', 'length', 'plain', 'zielsprache', 'autoRun']);
-  if (saved.fokus) prefs.fokus = saved.fokus;
+  const saved = await chrome.storage.local.get(['fokus', 'length', 'plain', 'zielsprache', 'autoRun', 'focusPoints', 'customFocuses']);
+  if (saved.fokus) prefs.fokus = saved.fokus === 'ueberblick' ? 'standard' : saved.fokus;
   if (saved.length) prefs.length = saved.length;
   if (typeof saved.plain === 'boolean') prefs.plain = saved.plain;
   if (saved.zielsprache) prefs.zielsprache = saved.zielsprache;
   if (typeof saved.autoRun === 'boolean') prefs.autoRun = saved.autoRun;
+  if (Array.isArray(saved.focusPoints)) {
+    prefs.focusPoints = sanitizeFocusPoints(saved.focusPoints);
+  } else {
+    prefs.focusPoints = [
+      ...cloneDefaultFocusPoints(),
+      ...sanitizeFocusPoints(saved.customFocuses || []).filter((f) => f.id !== 'standard'),
+    ];
+  }
+  if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
 }
 function savePrefs() {
   chrome.storage.local.set({
     fokus: prefs.fokus, length: prefs.length, plain: prefs.plain,
     zielsprache: prefs.zielsprache, autoRun: prefs.autoRun,
+    focusPoints: prefs.focusPoints,
   });
 }
 function reflectPrefs() {
-  els.fokusGrid.querySelectorAll('.focus-card').forEach((b) =>
-    b.setAttribute('aria-checked', String(b.dataset.val === prefs.fokus))
-  );
-  els.lengthSeg.querySelectorAll('.seg-opt').forEach((b) =>
-    b.setAttribute('aria-checked', String(b.dataset.val === prefs.length))
-  );
-  els.segIndicator.style.setProperty('--seg-i', String(LENGTH_ORDER.indexOf(prefs.length)));
+  renderFocusSelect();
+  els.fokusSelect.value = getFocusById(prefs.fokus) ? prefs.fokus : 'standard';
+  els.lengthSelect.value = prefs.length;
   els.zielsprache.value = prefs.zielsprache;
   els.plain.checked = prefs.plain;
   els.autoRun.checked = prefs.autoRun;
+  renderCustomFocusList();
+}
+
+function cloneDefaultFocusPoints() {
+  return DEFAULT_FOCUS_POINTS.map((item) => ({ ...item }));
+}
+function sanitizeFocusPoints(items) {
+  const clean = items
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      id: String(item.id || newFocusId()).replace(/[^a-z0-9_-]/gi, '').slice(0, 60),
+      name: String(item.name || '').trim().slice(0, 38),
+      prompt: String(item.prompt || '').trim().slice(0, 1800),
+      locked: item.id === 'standard' || Boolean(item.locked && item.id === 'standard'),
+    }))
+    .filter((item) => item.id && item.name && (item.locked || item.prompt))
+    .slice(0, 20);
+  const withoutDuplicateIds = [];
+  const seen = new Set();
+  for (const item of clean) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    withoutDuplicateIds.push(item);
+  }
+  if (!withoutDuplicateIds.some((item) => item.id === 'standard')) {
+    withoutDuplicateIds.unshift({ ...DEFAULT_FOCUS_POINTS[0] });
+  }
+  return withoutDuplicateIds.map((item) => item.id === 'standard' ? { ...DEFAULT_FOCUS_POINTS[0] } : item);
+}
+function focusOptions() {
+  return prefs.focusPoints;
+}
+function getFocusById(id) {
+  return focusOptions().find((f) => f.id === id) || null;
+}
+function activeFocus() {
+  return getFocusById(prefs.fokus) || getFocusById('standard');
+}
+function focusToBackend(id) {
+  return id === 'standard' ? 'ueberblick' : id;
+}
+function focusPromptForBackend(id) {
+  const focus = getFocusById(id);
+  return focus?.locked ? '' : focus?.prompt || '';
+}
+function renderFocusSelect() {
+  const current = els.fokusSelect.value || prefs.fokus;
+  els.fokusSelect.innerHTML = '';
+  prefs.focusPoints.forEach((f) => els.fokusSelect.appendChild(new Option(f.name, f.id)));
+  els.fokusSelect.value = getFocusById(current) ? current : prefs.fokus;
 }
 
 /* ====================================================================== */
@@ -188,6 +274,7 @@ async function loadCurrentPage() {
     page = { text: '', title: tab?.title || '', url: tabUrl, kind: 'text' };
     setSource('Diese Seite kann nicht gelesen werden.', '', '');
     els.reloadBtn.disabled = true;
+    clearSummaryState();
     return false;
   }
   els.reloadBtn.disabled = false;
@@ -213,18 +300,15 @@ async function loadCurrentPage() {
     page = { text: '', title: tab.title, url: tabUrl, kind: 'text' };
     setSource('Seite konnte nicht gelesen werden.', '', favUrl);
     els.reloadBtn.disabled = true;
+    clearSummaryState();
     return false;
   }
 
   if (page.text.length < 40) {
     setSource(page.title || 'Seite', 'Kaum Text gefunden', favUrl);
     els.reloadBtn.disabled = true;
+    clearSummaryState();
     return false;
-  }
-
-  if (page.paperLike && prefs.fokus === 'ueberblick' && !prefs._userTouchedFokus) {
-    prefs.fokus = 'wissenschaftlich';
-    reflectPrefs();
   }
 
   const words = page.text.split(/\s+/).length;
@@ -237,9 +321,11 @@ async function loadCurrentPage() {
 /* ====================================================================== */
 
 function cacheKey(extra = {}) {
+  const focus = extra.fokus ?? prefs.fokus;
+  const focusPoint = getFocusById(focus);
   return 'sum:' + JSON.stringify({
     u: normalizeUrl(page.url),
-    f: extra.fokus ?? prefs.fokus,
+    f: focus, c: focusPoint?.prompt || '',
     l: prefs.length, p: prefs.plain ? 1 : 0, z: prefs.zielsprache, k: page.kind,
   });
 }
@@ -248,6 +334,27 @@ async function cacheGet(key) {
 }
 async function cachePut(key, entry) {
   try { await chrome.storage.session.set({ [key]: entry }); } catch {}
+}
+
+function setQaReady(ready) {
+  els.qaForm.classList.toggle('is-disabled', !ready);
+  els.qaForm.setAttribute('aria-disabled', String(!ready));
+  els.qaInput.disabled = !ready;
+  els.qaInput.placeholder = ready ? 'Rückfrage zur Seite stellen...' : 'Zusammenfassung wird benötigt...';
+  els.qaForm.querySelector('.qa-send').disabled = !ready;
+}
+
+function clearSummaryState() {
+  currentMarkdown = '';
+  lastFokusUsed = null;
+  els.result.hidden = true;
+  els.summary.innerHTML = '';
+  els.summary.removeAttribute('aria-busy');
+  els.summaryTools.hidden = true;
+  [els.copyBtn, els.downloadBtn, els.ttsBtn].forEach((b) => (b.hidden = true));
+  resetQa();
+  setQaReady(false);
+  stopTts();
 }
 
 /* ====================================================================== */
@@ -274,17 +381,22 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
 
   lastKey = key;
   lastFokusUsed = fokus;
+  currentMarkdown = '';
   els.reloadBtn.classList.add('spinning');
   els.result.hidden = false;
-  [els.copyBtn, els.downloadBtn, els.ttsBtn, els.askBtn, els.fallbackBtn].forEach((b) => (b.hidden = true));
+  els.summaryTools.hidden = true;
+  setQaReady(false);
+  [els.copyBtn, els.downloadBtn, els.ttsBtn].forEach((b) => (b.hidden = true));
   els.qa.hidden = true;
   els.summary.setAttribute('aria-busy', 'true');
-  els.summary.innerHTML = '<span class="cursor"></span>';
-  setStatus('Erstelle Zusammenfassung …');
+  els.summary.innerHTML = '<div class="summary-loading"><span class="loading-spinner" aria-hidden="true"></span><span>Zusammenfassung wird erstellt...</span></div>';
 
   const body = {
     kind: page.kind, text: page.text, title: page.title, url: page.url,
-    length: prefs.length, fokus, plain: prefs.plain, zielsprache: prefs.zielsprache,
+    length: prefs.length,
+    fokus: focusToBackend(fokus),
+    customFocus: focusPromptForBackend(fokus),
+    plain: prefs.plain, zielsprache: prefs.zielsprache,
   };
 
   let acc = '';
@@ -303,7 +415,6 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
     els.summary.innerHTML = renderMarkdown(currentMarkdown);
     els.summary.removeAttribute('aria-busy');
     showSummaryActions(fokus);
-    setStatus('Fertig.');
     await cachePut(key, { markdown: currentMarkdown, ts: Date.now(), fokus });
     if (qaCurrentUrlKey !== normalizeUrl(page.url)) resetQa();
   } catch (e) {
@@ -311,7 +422,8 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
     els.summary.removeAttribute('aria-busy');
     els.summary.innerHTML = '';
     els.result.hidden = true;
-    setStatus('');
+    els.summaryTools.hidden = true;
+    setQaReady(false);
     showError(
       e.message.includes('Failed to fetch') || e.message.includes('nicht erreichbar')
         ? 'Backend nicht erreichbar. Läuft der Server auf http://localhost:3000?'
@@ -329,16 +441,15 @@ function showSummary(markdown, fokus, fromCache) {
   els.summary.removeAttribute('aria-busy');
   els.summary.innerHTML = renderMarkdown(markdown);
   showSummaryActions(fokus);
-  setStatus(fromCache ? 'Aus Cache — sofort, kein API-Call.' : 'Fertig.', fromCache ? 'cached' : '');
   if (qaCurrentUrlKey !== normalizeUrl(page.url)) resetQa();
 }
 
-function showSummaryActions(fokus) {
+function showSummaryActions() {
+  els.summaryTools.hidden = false;
   els.copyBtn.hidden = false;
   els.downloadBtn.hidden = false;
   els.ttsBtn.hidden = false;
-  els.askBtn.hidden = page.kind === 'video'; // kein Text → kein Q&A
-  els.fallbackBtn.hidden = fokus === 'ueberblick';
+  setQaReady(Boolean(currentMarkdown));
 }
 
 async function consumeSse(response, onDelta) {
@@ -381,7 +492,8 @@ function ttsLang() {
 }
 function setTtsState(playing) {
   els.ttsBtn.setAttribute('aria-pressed', String(playing));
-  els.ttsBtn.querySelector('span').textContent = playing ? 'Stoppen' : 'Vorlesen';
+  els.ttsBtn.title = playing ? 'Vorlesen stoppen' : 'Vorlesen';
+  els.ttsBtn.setAttribute('aria-label', playing ? 'Vorlesen stoppen' : 'Vorlesen');
 }
 function speak() {
   if (!('speechSynthesis' in window) || !currentMarkdown) return;
@@ -411,26 +523,22 @@ function resetQa() {
   els.qa.hidden = true;
   if (qaAbort) { qaAbort.abort(); qaAbort = null; }
 }
-function openQa() {
-  if (page.kind === 'video') return;
-  els.qa.hidden = false;
-  els.qaInput.focus();
-  els.qa.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
 function appendQaMsg(role, text) {
+  els.qa.hidden = false;
   const div = document.createElement('div');
   div.className = 'qa-msg ' + role;
   div.innerHTML = role === 'assistant' ? renderMarkdown(text) : escapeHtml(text);
   els.qaThread.appendChild(div);
-  div.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  requestAnimationFrame(() => { els.qa.scrollTop = els.qa.scrollHeight; });
   return div;
 }
 function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
 
 async function askQuestion(question) {
-  if (!question || page.kind === 'video') return;
-  if (!page.text || page.text.length < 40) {
-    showError('Q&A braucht Seitentext — bei PDFs/Videos derzeit nicht verfügbar.');
+  if (!question) return;
+  if (!currentMarkdown) {
+    showError('Bitte warte, bis die Zusammenfassung fertig ist.');
     return;
   }
   clearError();
@@ -447,7 +555,7 @@ async function askQuestion(question) {
     const r = await fetch(`${BACKEND}/api/qa`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: page.text, title: page.title, url: page.url, question,
+        text: page.text, summary: currentMarkdown, title: page.title, url: page.url, question,
         history: qaHistory.slice(0, -1), zielsprache: prefs.zielsprache, plain: prefs.plain,
       }),
       signal: qaAbort.signal,
@@ -478,34 +586,37 @@ els.qaForm.addEventListener('submit', (e) => {
 /* ====================================================================== */
 
 function onOptionChange() { savePrefs(); if (page.url) summarize(); }
+function onSettingsChange({ refreshSummary = false } = {}) {
+  savePrefs();
+  if (refreshSummary) settingsRefreshPending = true;
+}
 
-els.fokusGrid.addEventListener('click', (e) => {
-  const btn = e.target.closest('.focus-card');
-  if (!btn) return;
-  prefs.fokus = btn.dataset.val;
+els.fokusSelect.addEventListener('change', () => {
+  prefs.fokus = els.fokusSelect.value;
   prefs._userTouchedFokus = true;
   reflectPrefs();
   onOptionChange();
 });
-els.lengthSeg.addEventListener('click', (e) => {
-  const btn = e.target.closest('.seg-opt');
-  if (!btn) return;
-  prefs.length = btn.dataset.val;
+els.lengthSelect.addEventListener('change', () => {
+  prefs.length = els.lengthSelect.value;
   reflectPrefs();
   onOptionChange();
 });
-els.zielsprache.addEventListener('change', () => { prefs.zielsprache = els.zielsprache.value; onOptionChange(); });
-els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onOptionChange(); });
-els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; savePrefs(); });
+els.zielsprache.addEventListener('change', () => { prefs.zielsprache = els.zielsprache.value; onSettingsChange({ refreshSummary: true }); });
+els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onSettingsChange({ refreshSummary: true }); });
+els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; onSettingsChange(); });
 
 els.reloadBtn.addEventListener('click', () => summarize({ force: true }));
 
 els.copyBtn.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(currentMarkdown);
-    const span = els.copyBtn.querySelector('span');
-    span.textContent = 'Kopiert ✓';
-    setTimeout(() => { span.textContent = 'Kopieren'; }, 1500);
+    els.copyBtn.title = 'Kopiert';
+    els.copyBtn.setAttribute('aria-label', 'Kopiert');
+    setTimeout(() => {
+      els.copyBtn.title = 'Kopieren';
+      els.copyBtn.setAttribute('aria-label', 'Zusammenfassung kopieren');
+    }, 1500);
   } catch { showError('Zwischenablage nicht verfügbar.'); }
 });
 
@@ -522,24 +633,136 @@ els.downloadBtn.addEventListener('click', () => {
 });
 
 els.ttsBtn.addEventListener('click', toggleTts);
-els.askBtn.addEventListener('click', openQa);
-els.fallbackBtn.addEventListener('click', () => summarize({ force: true, fokusOverride: 'ueberblick' }));
+
+/* ====================================================================== */
+/* Fokus-Punkte                                                           */
+/* ====================================================================== */
+
+function newFocusId() {
+  return 'focus_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+function openFocusDialog(id = '') {
+  const item = prefs.focusPoints.find((f) => f.id === id);
+  els.customFocusId.value = item?.id || '';
+  els.customFocusName.value = item?.name || '';
+  els.customFocusPrompt.value = item?.prompt || '';
+  els.customFocusName.disabled = Boolean(item?.locked);
+  els.customFocusPrompt.disabled = Boolean(item?.locked);
+  els.customFocusDelete.hidden = !item || item.locked;
+  els.customFocusEditorTitle.textContent = item ? 'Fokus-Punkt bearbeiten' : 'Neuen Fokus erstellen';
+  renderCustomFocusList();
+  els.focusDialogScrim.hidden = false;
+  els.focusDialog.hidden = false;
+  els.customFocusName.focus();
+}
+function closeFocusDialog() {
+  els.focusDialogScrim.hidden = true;
+  els.focusDialog.hidden = true;
+}
+function renderCustomFocusList() {
+  if (!els.customFocusList) return;
+  els.customFocusList.innerHTML = '';
+  prefs.focusPoints.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = 'custom-focus-item' + (item.id === prefs.fokus ? ' is-active' : '');
+    row.dataset.id = item.id;
+    row.innerHTML = `
+      <div class="focus-item-main">
+        <strong>${escapeHtml(item.name)}</strong>
+        <span>${escapeHtml(item.locked ? 'Ausgewogene Basis-Zusammenfassung.' : item.prompt)}</span>
+        ${item.locked ? '<em class="focus-badge">Geschützt</em>' : ''}
+      </div>
+      <div class="focus-item-actions">
+        <button class="focus-item-btn" type="button" data-action="edit" title="${item.locked ? 'Standard kann nicht bearbeitet werden' : 'Bearbeiten'}" aria-label="${escapeAttr(item.name)} bearbeiten" ${item.locked ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="focus-item-btn focus-item-btn--danger" type="button" data-action="delete" title="${item.locked ? 'Standard kann nicht gelöscht werden' : 'Löschen'}" aria-label="${escapeAttr(item.name)} löschen" ${item.locked ? 'disabled' : ''}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+    `;
+    els.customFocusList.appendChild(row);
+  });
+}
+function saveCustomFocusFromForm() {
+  const existing = prefs.focusPoints.find((f) => f.id === els.customFocusId.value);
+  if (existing?.locked) return;
+  const name = els.customFocusName.value.trim();
+  const prompt = els.customFocusPrompt.value.trim();
+  if (!name || !prompt) {
+    showError('Eigener Fokus braucht einen Namen und eine Anweisung.');
+    return;
+  }
+  clearError();
+  const id = els.customFocusId.value || newFocusId();
+  const item = { id, name: name.slice(0, 38), prompt: prompt.slice(0, 1800) };
+  const idx = prefs.focusPoints.findIndex((f) => f.id === id);
+  if (idx >= 0) prefs.focusPoints[idx] = item;
+  else prefs.focusPoints.push(item);
+  prefs.focusPoints = sanitizeFocusPoints(prefs.focusPoints);
+  prefs.fokus = id;
+  savePrefs();
+  reflectPrefs();
+  closeFocusDialog();
+  settingsRefreshPending = true;
+}
+function deleteFocusPoint(id = els.customFocusId.value) {
+  if (!id) return;
+  const item = prefs.focusPoints.find((f) => f.id === id);
+  if (!item || item.locked) return;
+  const deletedActiveFocus = prefs.fokus === id;
+  prefs.focusPoints = prefs.focusPoints.filter((f) => f.id !== id);
+  if (deletedActiveFocus) prefs.fokus = 'standard';
+  savePrefs();
+  reflectPrefs();
+  closeFocusDialog();
+  if (deletedActiveFocus || lastFokusUsed === id) settingsRefreshPending = true;
+}
+function resetFocusPoints() {
+  prefs.focusPoints = cloneDefaultFocusPoints();
+  if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
+  savePrefs();
+  reflectPrefs();
+  closeFocusDialog();
+  settingsRefreshPending = true;
+}
+
+els.customFocusNew.addEventListener('click', () => openFocusDialog(''));
+els.customFocusList.addEventListener('click', (e) => {
+  const row = e.target.closest('.custom-focus-item');
+  const action = e.target.closest('[data-action]')?.dataset.action;
+  if (!row || !action) return;
+  if (action === 'edit') openFocusDialog(row.dataset.id);
+  if (action === 'delete') deleteFocusPoint(row.dataset.id);
+});
+els.customFocusForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  saveCustomFocusFromForm();
+});
+els.customFocusDelete.addEventListener('click', () => deleteFocusPoint());
+els.focusReset.addEventListener('click', resetFocusPoints);
+els.focusDialogClose.addEventListener('click', closeFocusDialog);
+els.focusDialogScrim.addEventListener('click', closeFocusDialog);
 
 /* ====================================================================== */
 /* Einstellungen-Popover                                                  */
 /* ====================================================================== */
 
 function openSettings() {
-  els.settingsScrim.hidden = false;
+  settingsRefreshPending = false;
+  els.mainView.hidden = true;
   els.settingsPanel.hidden = false;
   els.settingsBtn.setAttribute('aria-expanded', 'true');
   document.addEventListener('keydown', onSettingsKey);
+  els.settingsClose.focus();
 }
 function closeSettings() {
-  els.settingsScrim.hidden = true;
   els.settingsPanel.hidden = true;
+  els.mainView.hidden = false;
   els.settingsBtn.setAttribute('aria-expanded', 'false');
   document.removeEventListener('keydown', onSettingsKey);
+  if (settingsRefreshPending && page.url) summarize({ force: true });
+  settingsRefreshPending = false;
 }
 function onSettingsKey(e) { if (e.key === 'Escape') closeSettings(); }
 
@@ -547,7 +770,6 @@ els.settingsBtn.addEventListener('click', () =>
   els.settingsPanel.hidden ? openSettings() : closeSettings()
 );
 els.settingsClose.addEventListener('click', closeSettings);
-els.settingsScrim.addEventListener('click', closeSettings);
 
 /* ====================================================================== */
 /* Tab-Wechsel mit Debounce                                               */
@@ -560,6 +782,7 @@ function scheduleTabSwitch(delay = 500) {
     const ok = await loadCurrentPage();
     if (!ok) return;
     if (page.url === prevUrl) return;
+    clearSummaryState();
     const key = cacheKey();
     const cached = await cacheGet(key);
     if (cached?.markdown) { showSummary(cached.markdown, prefs.fokus, true); lastKey = key; return; }

@@ -5,24 +5,16 @@
 <link rel="stylesheet" href="sidepanel.css" />
 </head>
 <body>
-  <!-- ============ Kopfzeile ============ -->
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="4.5"></circle>
-          <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"></path>
-        </svg>
-      </span>
-      <h1>Suntino</h1>
-    </div>
+  <main class="app-view app-view--main" id="mainView">
+  <!-- ============ Kopfaktionen ============ -->
+  <header class="topbar" aria-label="Suntino Aktionen">
     <div class="topbar-actions">
       <button class="icon-btn" id="reloadBtn" type="button" title="Neu zusammenfassen" aria-label="Neu zusammenfassen">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path>
         </svg>
       </button>
-      <button class="icon-btn" id="settingsBtn" type="button" title="Einstellungen" aria-label="Einstellungen" aria-haspopup="dialog" aria-expanded="false">
+      <button class="icon-btn" id="settingsBtn" type="button" title="Einstellungen" aria-label="Einstellungen" aria-expanded="false">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -40,95 +32,61 @@
     </div>
   </div>
 
-  <!-- ============ Fokus ============ -->
-  <section class="field" aria-labelledby="fokusLabel">
-    <span class="field-label" id="fokusLabel">Fokus</span>
-    <div class="focus-grid" id="fokusGrid" role="radiogroup" aria-labelledby="fokusLabel">
-      <button class="focus-card" type="button" role="radio" data-val="ueberblick">
-        <svg class="fc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-        <span>Überblick</span>
-      </button>
-      <button class="focus-card" type="button" role="radio" data-val="zahlen">
-        <svg class="fc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        <span>Zahlen &amp; Fakten</span>
-      </button>
-      <button class="focus-card" type="button" role="radio" data-val="todos">
-        <svg class="fc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        <span>To-dos</span>
-      </button>
-      <button class="focus-card" type="button" role="radio" data-val="procontra">
-        <svg class="fc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><line x1="7" y1="22" x2="7" y2="11"/></svg>
-        <span>Pro &amp; Contra</span>
-      </button>
-      <button class="focus-card focus-card--wide" type="button" role="radio" data-val="wissenschaftlich">
-        <svg class="fc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V2"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.58 16.5h12.85"/></svg>
-        <span>Wissenschaftlich</span>
-      </button>
-    </div>
+  <!-- ============ Kompakte Steuerung ============ -->
+  <section class="control-strip" aria-label="Zusammenfassung steuern">
+    <label class="compact-field" for="fokusSelect">
+      <span>Fokus</span>
+      <select id="fokusSelect" class="compact-select"></select>
+    </label>
+    <label class="compact-field compact-field--small" for="lengthSelect">
+      <span>Länge</span>
+      <select id="lengthSelect" class="compact-select">
+        <option value="kurz">Kurz</option>
+        <option value="mittel">Mittel</option>
+        <option value="lang">Lang</option>
+      </select>
+    </label>
   </section>
-
-  <!-- ============ Länge ============ -->
-  <section class="field" aria-labelledby="lengthLabel">
-    <span class="field-label" id="lengthLabel">Länge</span>
-    <div class="segmented" id="lengthSeg" role="radiogroup" aria-labelledby="lengthLabel">
-      <span class="seg-indicator" id="segIndicator" aria-hidden="true"></span>
-      <button class="seg-opt" type="button" role="radio" data-val="kurz">Kurz</button>
-      <button class="seg-opt" type="button" role="radio" data-val="mittel">Mittel</button>
-      <button class="seg-opt" type="button" role="radio" data-val="lang">Lang</button>
-    </div>
-  </section>
-
-  <!-- ============ Status ============ -->
-  <p id="status" class="status" role="status" aria-live="polite"></p>
 
   <!-- ============ Ergebnis ============ -->
   <div class="result" id="result" hidden>
-    <div class="summary" id="summary"></div>
-
-    <div class="result-actions">
-      <button class="chip-btn" id="copyBtn" type="button" hidden>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <span>Kopieren</span>
+    <div class="summary-tools" id="summaryTools" hidden aria-label="Zusammenfassung Aktionen">
+      <button class="tool-btn" id="copyBtn" type="button" hidden title="Kopieren" aria-label="Zusammenfassung kopieren">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
       </button>
-      <button class="chip-btn" id="downloadBtn" type="button" hidden>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>.md</span>
+      <button class="tool-btn" id="downloadBtn" type="button" hidden title="Markdown herunterladen" aria-label="Markdown herunterladen">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
-      <button class="chip-btn" id="ttsBtn" type="button" hidden>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-        <span>Vorlesen</span>
-      </button>
-      <button class="chip-btn chip-btn--accent" id="askBtn" type="button" hidden>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Rückfrage stellen</span>
-      </button>
-      <button class="chip-btn" id="fallbackBtn" type="button" hidden>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-        <span>Als Überblick</span>
+      <button class="tool-btn" id="ttsBtn" type="button" hidden title="Vorlesen" aria-label="Vorlesen">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
       </button>
     </div>
+    <div class="summary" id="summary"></div>
 
-    <section class="qa" id="qa" hidden>
-      <div class="qa-thread" id="qaThread"></div>
-      <form class="qa-form" id="qaForm">
-        <input class="qa-input" id="qaInput" type="text" placeholder="Frage zur Seite …" autocomplete="off" />
-        <button class="qa-send" id="qaSendBtn" type="submit" aria-label="Frage senden">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
-      </form>
-    </section>
   </div>
 
   <p class="error" id="error" role="alert" hidden></p>
 
-  <!-- ============ Einstellungen (Popover) ============ -->
-  <div class="settings-scrim" id="settingsScrim" hidden></div>
-  <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Einstellungen" aria-modal="true" hidden>
+  <section class="qa" id="qa" hidden aria-label="Rückfragen">
+    <div class="qa-thread" id="qaThread"></div>
+  </section>
+
+  <form class="qa-dock is-disabled" id="qaForm" aria-disabled="true">
+    <input class="qa-input" id="qaInput" type="text" placeholder="Rückfrage zur Seite stellen..." autocomplete="off" disabled />
+    <button class="qa-send" id="qaSendBtn" type="submit" aria-label="Frage senden" disabled>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </form>
+  </main>
+
+  <!-- ============ Einstellungen ============ -->
+  <section class="settings-view app-view" id="settingsPanel" aria-label="Einstellungen" hidden>
     <div class="settings-head">
-      <h2>Einstellungen</h2>
-      <button class="icon-btn" id="settingsClose" type="button" aria-label="Schließen">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <button class="back-btn" id="settingsClose" type="button" aria-label="Zurück zur Zusammenfassung">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        <span>Zurück</span>
       </button>
+      <h2>Einstellungen</h2>
     </div>
 
     <label class="set-row" for="zielsprache">
@@ -151,13 +109,57 @@
     </label>
 
     <label class="set-row">
-      <span class="set-text"><span class="set-title">Auto bei Tab-Wechsel</span><span class="set-desc">Neue Seite automatisch zusammenfassen</span></span>
+      <span class="set-text"><span class="set-title">Automatisch aktualisieren</span><span class="set-desc">Neue Seite automatisch zusammenfassen</span></span>
       <span class="switch">
         <input type="checkbox" id="autoRun" checked />
         <span class="track" aria-hidden="true"></span>
       </span>
     </label>
-  </div>
+
+    <section class="focus-settings" aria-labelledby="customFocusTitle">
+      <div class="settings-section-head">
+        <div>
+          <h3 id="customFocusTitle">Fokus-Punkte</h3>
+          <p>Modi bearbeiten, löschen, neu anlegen oder zurücksetzen.</p>
+        </div>
+        <div class="focus-head-actions">
+          <button class="mini-btn" id="focusReset" type="button">Reset</button>
+          <button class="mini-btn mini-btn--primary" id="customFocusNew" type="button" title="Neuen Fokus-Punkt erstellen">Neu</button>
+        </div>
+      </div>
+      <div class="focus-manager">
+        <div class="custom-focus-list" id="customFocusList"></div>
+      </div>
+    </section>
+
+    <div class="focus-dialog-scrim" id="focusDialogScrim" hidden></div>
+    <div class="focus-dialog" id="focusDialog" role="dialog" aria-modal="true" aria-labelledby="customFocusEditorTitle" hidden>
+      <form class="custom-focus-form" id="customFocusForm">
+        <div class="focus-editor-head">
+          <div>
+            <h4 id="customFocusEditorTitle">Neuen Fokus erstellen</h4>
+            <p>Speichert nur diesen Fokus-Punkt. Die Zusammenfassung wird erst beim Zurückgehen aktualisiert.</p>
+          </div>
+          <button class="icon-btn" id="focusDialogClose" type="button" aria-label="Editor schließen">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <input type="hidden" id="customFocusId" />
+        <label>
+          <span>Name</span>
+          <input id="customFocusName" type="text" maxlength="38" placeholder="z. B. Kritische Fragen" />
+        </label>
+        <label>
+          <span>Anweisung</span>
+          <textarea id="customFocusPrompt" rows="5" maxlength="1800" placeholder="Beschreibe, worauf Suntino achten soll."></textarea>
+        </label>
+        <div class="form-actions">
+          <button class="mini-btn mini-btn--danger" id="customFocusDelete" type="button" hidden>Löschen</button>
+          <button class="mini-btn mini-btn--primary" type="submit">Fokus speichern</button>
+        </div>
+      </form>
+    </div>
+  </section>
 
   <script src="sidepanel.js"></script>
 </body>
