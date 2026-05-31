@@ -12,6 +12,7 @@ const els = {
   autoRun: document.getElementById('autoRun'),
   reloadBtn: document.getElementById('reloadBtn'),
   result: document.getElementById('result'),
+  summaryScroll: document.getElementById('summaryScroll'),
   summary: document.getElementById('summary'),
   summaryTools: document.getElementById('summaryTools'),
   copyBtn: document.getElementById('copyBtn'),
@@ -22,6 +23,7 @@ const els = {
   qaForm: document.getElementById('qaForm'),
   qaInput: document.getElementById('qaInput'),
   error: document.getElementById('error'),
+  toast: document.getElementById('toast'),
   // Settings
   settingsBtn: document.getElementById('settingsBtn'),
   settingsClose: document.getElementById('settingsClose'),
@@ -42,6 +44,13 @@ const els = {
 
 function showError(msg) { els.error.textContent = msg; els.error.hidden = false; }
 function clearError() { els.error.hidden = true; els.error.textContent = ''; }
+let toastTimer = null;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  els.toast.textContent = msg;
+  els.toast.hidden = false;
+  toastTimer = setTimeout(() => { els.toast.hidden = true; }, 2200);
+}
 
 /* ====================================================================== */
 /* State                                                                  */
@@ -54,29 +63,31 @@ const DEFAULT_FOCUS_POINTS = [
     name: 'Zahlen & Fakten',
     prompt:
       'Extrahiere konkrete Zahlen, Daten, Fakten, Messwerte, Zeitangaben, Geldbeträge und Eigennamen. ' +
-      'Beginne mit einem kurzen TL;DR und liste danach die belastbaren Zahlen & Fakten mit Kontext auf. Erfinde nichts.',
-  },
-  {
-    id: 'todos',
-    name: 'To-dos',
-    prompt:
-      'Extrahiere ausschließlich Handlungsanweisungen, Aufgaben, Schritte, Empfehlungen oder Aufrufe zum Handeln. ' +
-      'Gib sie als Markdown-Checkliste im Imperativ aus. Wenn es keine To-dos gibt, sage das ehrlich.',
+      'Beginne mit einem kurzen TL;DR. Stelle die Fakten danach kompakt als Markdown-Tabelle mit den Spalten "Wert", "Kontext" und "Einordnung" dar. ' +
+      'Nenne nur belastbare Angaben aus der Quelle und erfinde nichts.',
   },
   {
     id: 'procontra',
     name: 'Pro & Contra',
     prompt:
       'Identifiziere Argumente, Vor- und Nachteile, Chancen und Risiken zum Hauptthema. ' +
-      'Strukturiere die Antwort mit den Abschnitten Pro und Contra. Erfinde keine Argumente.',
+      'Beginne mit einem kurzen TL;DR und stelle die Informationen danach kompakt dar, idealerweise als Markdown-Tabelle mit den Spalten "Pro", "Contra" und "Einordnung". ' +
+      'Erfinde keine Argumente und kennzeichne fehlende Gegenpositionen klar.',
   },
 ];
+
+const SUPPORTED_LANGS = new Set([
+  'auto', 'de', 'en', 'es', 'fr', 'it', 'pt', 'nl', 'pl', 'tr', 'uk', 'ru',
+  'ar', 'he', 'fa', 'hi', 'bn', 'ta', 'te', 'mr', 'pa', 'ur', 'zh-Hans',
+  'ja', 'ko', 'vi', 'id', 'ms', 'th', 'sw', 'sv', 'da', 'no', 'fi',
+  'cs', 'el', 'ro', 'hu',
+]);
 
 let page = { text: '', title: '', url: '', kind: 'text' };
 let prefs = {
   fokus: 'standard',
   length: 'mittel',
-  zielsprache: 'de',
+  zielsprache: 'auto',
   plain: false,
   autoRun: true,
   focusPoints: cloneDefaultFocusPoints(),
@@ -101,7 +112,7 @@ async function loadPrefs() {
   if (saved.fokus) prefs.fokus = saved.fokus === 'ueberblick' ? 'standard' : saved.fokus;
   if (saved.length) prefs.length = saved.length;
   if (typeof saved.plain === 'boolean') prefs.plain = saved.plain;
-  if (saved.zielsprache) prefs.zielsprache = saved.zielsprache;
+  if (saved.zielsprache) prefs.zielsprache = normalizeLanguage(saved.zielsprache);
   if (typeof saved.autoRun === 'boolean') prefs.autoRun = saved.autoRun;
   if (Array.isArray(saved.focusPoints)) {
     prefs.focusPoints = sanitizeFocusPoints(saved.focusPoints);
@@ -119,6 +130,26 @@ function savePrefs() {
     zielsprache: prefs.zielsprache, autoRun: prefs.autoRun,
     focusPoints: prefs.focusPoints,
   });
+}
+function normalizeLanguage(lang) {
+  const raw = String(lang || 'auto');
+  if (SUPPORTED_LANGS.has(raw)) return raw;
+  const base = raw.split('-')[0].toLowerCase();
+  if (SUPPORTED_LANGS.has(base)) return base;
+  if (base === 'zh') return 'zh-Hans';
+  return 'auto';
+}
+function systemLanguage() {
+  const nav = typeof navigator === 'undefined' ? {} : navigator;
+  const candidates = [nav.language, ...(nav.languages || [])].filter(Boolean);
+  for (const lang of candidates) {
+    const normalized = normalizeLanguage(lang);
+    if (normalized !== 'auto') return normalized;
+  }
+  return 'de';
+}
+function targetLanguage() {
+  return prefs.zielsprache === 'auto' ? systemLanguage() : normalizeLanguage(prefs.zielsprache);
 }
 function reflectPrefs() {
   renderFocusSelect();
@@ -142,6 +173,7 @@ function sanitizeFocusPoints(items) {
       prompt: String(item.prompt || '').trim().slice(0, 1800),
       locked: item.id === 'standard' || Boolean(item.locked && item.id === 'standard'),
     }))
+    .filter((item) => item.id !== 'todos')
     .filter((item) => item.id && item.name && (item.locked || item.prompt))
     .slice(0, 20);
   const withoutDuplicateIds = [];
@@ -193,11 +225,34 @@ function renderMarkdown(md) {
   const out = [];
   let list = null;
   const closeList = () => { if (list) { out.push(`</ul>`); list = null; } };
-  for (const raw of md.split('\n')) {
+  const lines = md.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
     const line = raw.trimEnd();
     const h = line.match(/^(#{2,4})\s+(.*)$/);
     const todoLi = line.match(/^\s*-\s+\[( |x|X)\]\s+(.*)$/);
     const li = line.match(/^\s*[-*]\s+(.*)$/);
+    const tableRow = line.trim().startsWith('|') && line.trim().endsWith('|');
+    const nextLine = lines[i + 1]?.trim() || '';
+    const tableSep = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(nextLine);
+    if (tableRow && tableSep) {
+      closeList();
+      const splitRow = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
+      const header = splitRow(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      i--;
+      out.push('<table><thead><tr>' + header.map((cell) => `<th>${inline(cell)}</th>`).join('') + '</tr></thead><tbody>');
+      rows.forEach((row) => {
+        out.push('<tr>' + header.map((_, idx) => `<td>${inline(row[idx] || '')}</td>`).join('') + '</tr>');
+      });
+      out.push('</tbody></table>');
+      continue;
+    }
     if (h) {
       closeList();
       const tag = h[1].length === 2 ? 'h2' : 'h3';
@@ -326,7 +381,7 @@ function cacheKey(extra = {}) {
   return 'sum:' + JSON.stringify({
     u: normalizeUrl(page.url),
     f: focus, c: focusPoint?.prompt || '',
-    l: prefs.length, p: prefs.plain ? 1 : 0, z: prefs.zielsprache, k: page.kind,
+    l: prefs.length, p: prefs.plain ? 1 : 0, z: targetLanguage(), k: page.kind,
   });
 }
 async function cacheGet(key) {
@@ -349,6 +404,7 @@ function clearSummaryState() {
   lastFokusUsed = null;
   els.result.hidden = true;
   els.summary.innerHTML = '';
+  els.summaryScroll.scrollTop = 0;
   els.summary.removeAttribute('aria-busy');
   els.summaryTools.hidden = true;
   [els.copyBtn, els.downloadBtn, els.ttsBtn].forEach((b) => (b.hidden = true));
@@ -390,13 +446,14 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   els.qa.hidden = true;
   els.summary.setAttribute('aria-busy', 'true');
   els.summary.innerHTML = '<div class="summary-loading"><span class="loading-spinner" aria-hidden="true"></span><span>Zusammenfassung wird erstellt...</span></div>';
+  els.summaryScroll.scrollTop = 0;
 
   const body = {
     kind: page.kind, text: page.text, title: page.title, url: page.url,
     length: prefs.length,
     fokus: focusToBackend(fokus),
     customFocus: focusPromptForBackend(fokus),
-    plain: prefs.plain, zielsprache: prefs.zielsprache,
+    plain: prefs.plain, zielsprache: targetLanguage(),
   };
 
   let acc = '';
@@ -484,11 +541,22 @@ function stripMarkdownForTts(md) {
   return md
     .replace(/```[\s\S]*?```/g, '').replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, '')
+    .replace(/^\s*\|(.+)\|\s*$/gm, (_, row) => row.split('|').map((cell) => cell.trim()).filter(Boolean).join('. '))
     .replace(/^#{1,6}\s+/gm, '').replace(/^\s*[-*]\s+\[[ xX]\]\s+/gm, '')
     .replace(/^\s*[-*]\s+/gm, '').replace(/\n{2,}/g, '. ').replace(/\n/g, ' ');
 }
 function ttsLang() {
-  return ({ de: 'de-DE', en: 'en-US', tr: 'tr-TR', fr: 'fr-FR', es: 'es-ES' })[prefs.zielsprache] || 'de-DE';
+  return ({
+    de: 'de-DE', en: 'en-US', es: 'es-ES', fr: 'fr-FR', it: 'it-IT',
+    pt: 'pt-PT', nl: 'nl-NL', pl: 'pl-PL', tr: 'tr-TR', uk: 'uk-UA',
+    ru: 'ru-RU', ar: 'ar-SA', he: 'he-IL', fa: 'fa-IR', hi: 'hi-IN',
+    bn: 'bn-BD', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN', pa: 'pa-IN',
+    ur: 'ur-PK', 'zh-Hans': 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
+    vi: 'vi-VN', id: 'id-ID', ms: 'ms-MY', th: 'th-TH', sw: 'sw-KE',
+    sv: 'sv-SE', da: 'da-DK', no: 'nb-NO', fi: 'fi-FI', cs: 'cs-CZ',
+    el: 'el-GR', ro: 'ro-RO', hu: 'hu-HU',
+  })[targetLanguage()] || 'de-DE';
 }
 function setTtsState(playing) {
   els.ttsBtn.setAttribute('aria-pressed', String(playing));
@@ -529,11 +597,16 @@ function appendQaMsg(role, text) {
   div.className = 'qa-msg ' + role;
   div.innerHTML = role === 'assistant' ? renderMarkdown(text) : escapeHtml(text);
   els.qaThread.appendChild(div);
-  requestAnimationFrame(() => { els.qa.scrollTop = els.qa.scrollHeight; });
+  scrollResultToBottom();
   return div;
 }
 function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+function scrollResultToBottom() {
+  requestAnimationFrame(() => {
+    els.summaryScroll.scrollTop = els.summaryScroll.scrollHeight;
+  });
+}
 
 async function askQuestion(question) {
   if (!question) return;
@@ -556,7 +629,7 @@ async function askQuestion(question) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: page.text, summary: currentMarkdown, title: page.title, url: page.url, question,
-        history: qaHistory.slice(0, -1), zielsprache: prefs.zielsprache, plain: prefs.plain,
+        history: qaHistory.slice(0, -1), zielsprache: targetLanguage(), plain: prefs.plain,
       }),
       signal: qaAbort.signal,
     });
@@ -564,8 +637,10 @@ async function askQuestion(question) {
     await consumeSse(r, (delta) => {
       acc += delta;
       msgEl.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
+      scrollResultToBottom();
     });
     msgEl.innerHTML = renderMarkdown(acc);
+    scrollResultToBottom();
     qaHistory.push({ role: 'assistant', content: acc });
   } catch (e) {
     if (e.name === 'AbortError') return;
@@ -602,21 +677,34 @@ els.lengthSelect.addEventListener('change', () => {
   reflectPrefs();
   onOptionChange();
 });
-els.zielsprache.addEventListener('change', () => { prefs.zielsprache = els.zielsprache.value; onSettingsChange({ refreshSummary: true }); });
+els.zielsprache.addEventListener('change', () => { prefs.zielsprache = normalizeLanguage(els.zielsprache.value); onSettingsChange({ refreshSummary: true }); });
 els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onSettingsChange({ refreshSummary: true }); });
 els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; onSettingsChange(); });
 
 els.reloadBtn.addEventListener('click', () => summarize({ force: true }));
 
+async function copyText(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '-999px';
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand('copy');
+  ta.remove();
+  if (!ok) throw new Error('copy failed');
+}
+
 els.copyBtn.addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(currentMarkdown);
-    els.copyBtn.title = 'Kopiert';
-    els.copyBtn.setAttribute('aria-label', 'Kopiert');
-    setTimeout(() => {
-      els.copyBtn.title = 'Kopieren';
-      els.copyBtn.setAttribute('aria-label', 'Zusammenfassung kopieren');
-    }, 1500);
+    await copyText(currentMarkdown);
+    clearError();
+    showToast('In die Zwischenablage kopiert');
   } catch { showError('Zwischenablage nicht verfügbar.'); }
 });
 
@@ -634,6 +722,16 @@ els.downloadBtn.addEventListener('click', () => {
 
 els.ttsBtn.addEventListener('click', toggleTts);
 
+document.querySelectorAll('.compact-field').forEach((field) => {
+  const select = field.querySelector('select');
+  if (!select) return;
+  field.addEventListener('click', (e) => {
+    if (e.target === select) return;
+    select.focus();
+    select.showPicker?.();
+  });
+});
+
 /* ====================================================================== */
 /* Fokus-Punkte                                                           */
 /* ====================================================================== */
@@ -649,7 +747,7 @@ function openFocusDialog(id = '') {
   els.customFocusName.disabled = Boolean(item?.locked);
   els.customFocusPrompt.disabled = Boolean(item?.locked);
   els.customFocusDelete.hidden = !item || item.locked;
-  els.customFocusEditorTitle.textContent = item ? 'Fokus-Punkt bearbeiten' : 'Neuen Fokus erstellen';
+  els.customFocusEditorTitle.textContent = item ? 'Stil bearbeiten' : 'Neuen Stil erstellen';
   renderCustomFocusList();
   els.focusDialogScrim.hidden = false;
   els.focusDialog.hidden = false;
@@ -662,9 +760,12 @@ function closeFocusDialog() {
 function renderCustomFocusList() {
   if (!els.customFocusList) return;
   els.customFocusList.innerHTML = '';
+  let visibleCount = 0;
   prefs.focusPoints.forEach((item) => {
+    if (item.locked) return;
+    visibleCount++;
     const row = document.createElement('div');
-    row.className = 'custom-focus-item' + (item.id === prefs.fokus ? ' is-active' : '');
+    row.className = 'custom-focus-item';
     row.dataset.id = item.id;
     row.innerHTML = `
       <div class="focus-item-main">
@@ -683,6 +784,12 @@ function renderCustomFocusList() {
     `;
     els.customFocusList.appendChild(row);
   });
+  if (!visibleCount) {
+    const empty = document.createElement('p');
+    empty.className = 'custom-focus-empty';
+    empty.textContent = 'Keine bearbeitbaren Stile. Lege einen neuen Stil an oder stelle die Standard-Stile wieder her.';
+    els.customFocusList.appendChild(empty);
+  }
 }
 function saveCustomFocusFromForm() {
   const existing = prefs.focusPoints.find((f) => f.id === els.customFocusId.value);
@@ -690,7 +797,7 @@ function saveCustomFocusFromForm() {
   const name = els.customFocusName.value.trim();
   const prompt = els.customFocusPrompt.value.trim();
   if (!name || !prompt) {
-    showError('Eigener Fokus braucht einen Namen und eine Anweisung.');
+    showError('Ein Stil braucht einen Namen und eine Anweisung.');
     return;
   }
   clearError();

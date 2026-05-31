@@ -45,13 +45,18 @@ The extension extracts page text by injecting `pageExtractor()` into the active 
 ## Side panel UX
 
 - The Chrome Side Panel already shows the extension title, so `sidepanel.html` should not add a second visible "Suntino" app header.
-- Focus and length controls are compact `<select>` controls near the source card; avoid showing all modes as large cards in the main view.
+- Style and length controls are compact `<select>` controls near the source card; avoid showing all modes as large cards in the main view. The code still uses historical `fokus` ids internally.
 - Summary actions (`copy`, Markdown download, TTS) live as icon-only buttons above the summary in `summaryTools`.
 - Q&A is a persistent bottom input (`qa-dock`) with placeholder "Rückfrage zur Seite stellen..."; it is disabled until a summary is loaded. Avoid adding a separate "Rückfrage stellen" button.
-- Focus options are managed as one list in `prefs.focusPoints`: no separate UI distinction between built-in and user-created points.
-- The focus point `Standard` is locked and must stay available; it creates a balanced summary and cannot be edited or deleted.
-- Non-locked focus points can be edited/deleted from the settings page. The editor opens as a focused modal on top of the settings view.
-- Settings include a focus reset action that restores the default focus points.
+- Q&A messages belong inside the result scroll area (`summaryScroll`) below the generated summary, not in a fixed overlay, and should auto-scroll downward while answers stream.
+- Style options are managed as one list in `prefs.focusPoints`: no separate UI distinction between built-in and user-created points.
+- The style `Standard` is locked and must stay available; it creates a balanced summary and cannot be edited or deleted.
+- Non-locked styles can be edited/deleted from the settings page. The editor opens as a focused modal on top of the settings view.
+- The settings style list hides the locked `Standard` point; it remains available only in the main style dropdown.
+- Settings include a reset action that restores the default styles.
+- Default non-locked styles are currently `Zahlen & Fakten` and `Pro & Contra`; do not reintroduce `To-dos` or `Wissenschaftlich` without an explicit product decision.
+- Summary rendering supports compact Markdown tables for focus modes such as `Zahlen & Fakten` and `Pro & Contra`.
+- Copy success feedback is shown via the in-panel `.toast`, not by changing the icon button text.
 - The old textual status line is intentionally removed. Loading state is shown inside the summary area via `.summary-loading`.
 - Settings are a separate in-panel view, not a modal. Use `mainView` and `settingsPanel` to switch between the main screen and settings.
 - Settings changes that affect the summary are saved immediately but should only trigger regeneration when leaving the settings view.

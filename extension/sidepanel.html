@@ -35,7 +35,7 @@
   <!-- ============ Kompakte Steuerung ============ -->
   <section class="control-strip" aria-label="Zusammenfassung steuern">
     <label class="compact-field" for="fokusSelect">
-      <span>Fokus</span>
+      <span>Stil</span>
       <select id="fokusSelect" class="compact-select"></select>
     </label>
     <label class="compact-field compact-field--small" for="lengthSelect">
@@ -61,15 +61,16 @@
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
       </button>
     </div>
-    <div class="summary" id="summary"></div>
-
+    <div class="summary-scroll" id="summaryScroll">
+      <div class="summary" id="summary"></div>
+      <section class="qa" id="qa" hidden aria-label="Rückfragen">
+        <div class="qa-thread" id="qaThread"></div>
+      </section>
+    </div>
   </div>
 
   <p class="error" id="error" role="alert" hidden></p>
-
-  <section class="qa" id="qa" hidden aria-label="Rückfragen">
-    <div class="qa-thread" id="qaThread"></div>
-  </section>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <form class="qa-dock is-disabled" id="qaForm" aria-disabled="true">
     <input class="qa-input" id="qaInput" type="text" placeholder="Rückfrage zur Seite stellen..." autocomplete="off" disabled />
@@ -89,45 +90,88 @@
       <h2>Einstellungen</h2>
     </div>
 
-    <label class="set-row" for="zielsprache">
-      <span class="set-text"><span class="set-title">Sprache</span><span class="set-desc">Ausgabe der Zusammenfassung</span></span>
-      <select id="zielsprache" class="select">
-        <option value="de">Deutsch</option>
-        <option value="en">Englisch</option>
-        <option value="tr">Türkisch</option>
-        <option value="fr">Französisch</option>
-        <option value="es">Spanisch</option>
-      </select>
-    </label>
-
-    <label class="set-row">
-      <span class="set-text"><span class="set-title">Einfache Sprache</span><span class="set-desc">Kurze Sätze, Niveau B1</span></span>
-      <span class="switch">
-        <input type="checkbox" id="plain" />
-        <span class="track" aria-hidden="true"></span>
-      </span>
-    </label>
-
-    <label class="set-row">
-      <span class="set-text"><span class="set-title">Automatisch aktualisieren</span><span class="set-desc">Neue Seite automatisch zusammenfassen</span></span>
-      <span class="switch">
-        <input type="checkbox" id="autoRun" checked />
-        <span class="track" aria-hidden="true"></span>
-      </span>
-    </label>
-
-    <section class="focus-settings" aria-labelledby="customFocusTitle">
+    <section class="settings-section" aria-labelledby="generalSettingsTitle">
       <div class="settings-section-head">
         <div>
-          <h3 id="customFocusTitle">Fokus-Punkte</h3>
-          <p>Modi bearbeiten, löschen, neu anlegen oder zurücksetzen.</p>
+          <h3 id="generalSettingsTitle">Allgemein</h3>
+          <p>Sprache und Verhalten der Erweiterung.</p>
+        </div>
+      </div>
+      <div class="settings-panel">
+        <label class="set-row" for="zielsprache">
+          <span class="set-text"><span class="set-title">Zielsprache</span><span class="set-desc">Ausgabe der Zusammenfassung</span></span>
+          <select id="zielsprache" class="select">
+            <option value="auto">Standard</option>
+            <option value="de">Deutsch</option>
+            <option value="en">Englisch</option>
+            <option value="es">Spanisch</option>
+            <option value="fr">Französisch</option>
+            <option value="it">Italienisch</option>
+            <option value="pt">Portugiesisch</option>
+            <option value="nl">Niederländisch</option>
+            <option value="pl">Polnisch</option>
+            <option value="tr">Türkisch</option>
+            <option value="uk">Ukrainisch</option>
+            <option value="ru">Russisch</option>
+            <option value="ar">Arabisch</option>
+            <option value="he">Hebräisch</option>
+            <option value="fa">Persisch</option>
+            <option value="hi">Hindi</option>
+            <option value="bn">Bengalisch</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+            <option value="mr">Marathi</option>
+            <option value="pa">Punjabi</option>
+            <option value="ur">Urdu</option>
+            <option value="zh-Hans">Chinesisch (vereinfacht)</option>
+            <option value="ja">Japanisch</option>
+            <option value="ko">Koreanisch</option>
+            <option value="vi">Vietnamesisch</option>
+            <option value="id">Indonesisch</option>
+            <option value="ms">Malaiisch</option>
+            <option value="th">Thailändisch</option>
+            <option value="sw">Suaheli</option>
+            <option value="sv">Schwedisch</option>
+            <option value="da">Dänisch</option>
+            <option value="no">Norwegisch</option>
+            <option value="fi">Finnisch</option>
+            <option value="cs">Tschechisch</option>
+            <option value="el">Griechisch</option>
+            <option value="ro">Rumänisch</option>
+            <option value="hu">Ungarisch</option>
+          </select>
+        </label>
+
+        <label class="set-row">
+          <span class="set-text"><span class="set-title">Einfache Sprache</span><span class="set-desc">Kurze Sätze, Niveau B1</span></span>
+          <span class="switch">
+            <input type="checkbox" id="plain" />
+            <span class="track" aria-hidden="true"></span>
+          </span>
+        </label>
+
+        <label class="set-row">
+          <span class="set-text"><span class="set-title">Automatisch aktualisieren</span><span class="set-desc">Neue Seite automatisch zusammenfassen</span></span>
+          <span class="switch">
+            <input type="checkbox" id="autoRun" checked />
+            <span class="track" aria-hidden="true"></span>
+          </span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section focus-settings" aria-labelledby="customFocusTitle">
+      <div class="settings-section-head">
+        <div>
+          <h3 id="customFocusTitle">Stile</h3>
+          <p>Zusammenfassungsstile bearbeiten, löschen, neu anlegen oder zurücksetzen.</p>
         </div>
         <div class="focus-head-actions">
           <button class="mini-btn" id="focusReset" type="button">Reset</button>
-          <button class="mini-btn mini-btn--primary" id="customFocusNew" type="button" title="Neuen Fokus-Punkt erstellen">Neu</button>
+          <button class="mini-btn mini-btn--primary" id="customFocusNew" type="button" title="Neuen Stil erstellen">Neu</button>
         </div>
       </div>
-      <div class="focus-manager">
+      <div class="settings-panel">
         <div class="custom-focus-list" id="customFocusList"></div>
       </div>
     </section>
@@ -137,8 +181,8 @@
       <form class="custom-focus-form" id="customFocusForm">
         <div class="focus-editor-head">
           <div>
-            <h4 id="customFocusEditorTitle">Neuen Fokus erstellen</h4>
-            <p>Speichert nur diesen Fokus-Punkt. Die Zusammenfassung wird erst beim Zurückgehen aktualisiert.</p>
+            <h4 id="customFocusEditorTitle">Neuen Stil erstellen</h4>
+            <p>Speichert nur diesen Stil. Die Zusammenfassung wird erst beim Zurückgehen aktualisiert.</p>
           </div>
           <button class="icon-btn" id="focusDialogClose" type="button" aria-label="Editor schließen">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -151,11 +195,11 @@
         </label>
         <label>
           <span>Anweisung</span>
-          <textarea id="customFocusPrompt" rows="5" maxlength="1800" placeholder="Beschreibe, worauf Suntino achten soll."></textarea>
+          <textarea id="customFocusPrompt" rows="5" maxlength="1800" placeholder="Beschreibe, wie Suntino die Seite zusammenfassen soll."></textarea>
         </label>
         <div class="form-actions">
           <button class="mini-btn mini-btn--danger" id="customFocusDelete" type="button" hidden>Löschen</button>
-          <button class="mini-btn mini-btn--primary" type="submit">Fokus speichern</button>
+          <button class="mini-btn mini-btn--primary" type="submit">Stil speichern</button>
         </div>
       </form>
     </div>
