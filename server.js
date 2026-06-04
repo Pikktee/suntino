@@ -14,11 +14,15 @@ const DEFAULT_MODEL       = 'google/gemini-2.5-flash-lite';
 const DEFAULT_VIDEO_MODEL = 'google/gemini-2.5-flash';
 const DEFAULT_PDF_MODEL   = 'google/gemini-2.5-flash';
 const DEFAULT_LONG_MODEL  = 'google/gemini-2.5-pro';
+// Leichte Sprache stellt hohe Anforderungen an Grammatik (Genitiv, Nominalstil,
+// Satzlänge, Worterklärungen). Dafür ein stärkeres Modell als das Standard-Lite.
+const DEFAULT_PLAIN_MODEL = 'google/gemini-2.5-flash';
 
 const MODEL       = process.env.OPENROUTER_MODEL       || DEFAULT_MODEL;
 const VIDEO_MODEL = process.env.OPENROUTER_VIDEO_MODEL || DEFAULT_VIDEO_MODEL;
 const PDF_MODEL   = process.env.OPENROUTER_PDF_MODEL   || DEFAULT_PDF_MODEL;
 const LONG_MODEL  = process.env.OPENROUTER_LONG_MODEL  || DEFAULT_LONG_MODEL;
+const PLAIN_MODEL = process.env.OPENROUTER_PLAIN_MODEL || DEFAULT_PLAIN_MODEL;
 
 const PORT = process.env.PORT || 3000;
 const HOTRELOAD = process.env.HOTRELOAD !== '0';
@@ -126,16 +130,28 @@ function countWords(text = '') {
   return String(text).trim().split(/\s+/).filter(Boolean).length;
 }
 
-function lengthForSource(length, sourceWords) {
+function lengthForSource(length, sourceWords, plain = false) {
   const fallback = LENGTH[length] || LENGTH.mittel;
   if (!sourceWords) return fallback;
   const mode = LENGTH[length] ? length : 'mittel';
-  const maxByRatio = Math.floor(sourceWords * LENGTH_RATIO[mode]);
+  // Leichte Sprache ist eine Umformulierung, KEINE Verdichtung: sehr kurze Sätze,
+  // eigene Zeilen und Begriffserklärungen ("NATO" → "Die NATO ist ein Bündnis ...")
+  // brauchen deutlich mehr Platz. Mit dem normalen, auf Verdichtung ausgelegten
+  // Budget opfert das Modell zuerst genau diese Erklärungen. Daher bei plain:
+  // größere Quote, höheres Cap, und der Verdichtungsmodus (oneLine) entfällt.
+  const ratio = plain ? Math.min(0.95, LENGTH_RATIO[mode] * 2.2) : LENGTH_RATIO[mode];
+  const cap = plain ? Math.round(fallback.maxWords * 1.8) : fallback.maxWords;
+  const maxByRatio = Math.floor(sourceWords * ratio);
   const rawMaxWords = Math.max(LENGTH_MIN[mode], maxByRatio);
-  const maxWords = Math.max(4, Math.min(fallback.maxWords, rawMaxWords, sourceWords - 1));
-  const oneLine = sourceWords <= 80;
+  // Bei plain darf die Ausgabe länger als die Quelle sein (Erklärungen); sonst nicht.
+  const maxWords = plain
+    ? Math.max(LENGTH_MIN[mode], Math.min(cap, rawMaxWords))
+    : Math.max(4, Math.min(fallback.maxWords, rawMaxWords, sourceWords - 1));
+  const oneLine = !plain && sourceWords <= 80;
   const detail = oneLine
     ? 'verdichte den Inhalt deutlich; keine Überschriften, kein TL;DR, keine Tabellen, keine zusätzlichen Beispiele'
+    : plain
+    ? `${fallback.detail}; nimm dir genug Platz, um schwere Wörter und Abkürzungen zu erklären`
     : `${fallback.detail}; bleibe deutlich kürzer als der Ausgangstext`;
   // Zeilenobergrenze für Tabellen-Stile (keine Tabellen bei sehr kurzen Quellen).
   const maxRows = oneLine ? 0 : (fallback.maxRows || LENGTH.mittel.maxRows);
@@ -146,6 +162,8 @@ function lengthForSource(length, sourceWords) {
     maxRows,
     formatHint: oneLine
       ? 'Gib nur einen kurzen Satz oder wenige knappe Stichpunkte aus. Baue keine Struktur aus Überschriften, TL;DR oder Abschnitten.'
+      : plain
+      ? 'Die Regeln der Leichten Sprache haben Vorrang. Erkläre jedes schwere Wort, auch wenn der Text dadurch länger wird.'
       : 'Falls Stil-Regeln mehr Struktur verlangen, kürze die Struktur so weit, dass die maximale Wortzahl eingehalten wird.',
   };
 }
@@ -163,8 +181,8 @@ function buildSystem({ fokus, customFocus, plain, zielsprache }) {
   });
 }
 
-function buildInstruction({ length, title, url, kind, sourceWords = 0 }) {
-  const L = lengthForSource(length, sourceWords);
+function buildInstruction({ length, title, url, kind, sourceWords = 0, plain = false }) {
+  const L = lengthForSource(length, sourceWords, plain);
   const kindInstruction =
     kind === 'video'     ? 'Fasse das oben verlinkte Video zusammen.' :
     kind === 'pdf'       ? 'Fasse das oben angehängte PDF zusammen.' :
@@ -201,8 +219,8 @@ function isPdfUrl(url = '') {
 function buildMessages({ kind, text, url, title, length, fokus, customFocus, plain, zielsprache }) {
   const system = buildSystem({ fokus, customFocus, plain, zielsprache });
   const sourceWords = (kind === 'text' || kind === 'selection') ? countWords(text) : 0;
-  const lengthTarget = lengthForSource(length, sourceWords);
-  const instruction = buildInstruction({ length, title, url, kind, sourceWords });
+  const lengthTarget = lengthForSource(length, sourceWords, plain);
+  const instruction = buildInstruction({ length, title, url, kind, sourceWords, plain });
   // max_tokens ist nur eine Sicherheitsgrenze (die Länge steuert der Prompt).
   // Tabellen-Stile begrenzen ihre Größe über die Zeilenanzahl (s. Prompt-Hinweis),
   // nicht über die Wortzahl — Markdown-Tabellen haben viel Syntax-Overhead, und
@@ -260,8 +278,9 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
 
   // text / selection
   const trimmed = String(text || '').slice(0, 120000);
-  // sehr lange Seiten → großes Kontextmodell
-  const model = trimmed.length > 50000 ? LONG_MODEL : MODEL;
+  // sehr lange Seiten → großes Kontextmodell (gewinnt vor dem Leichte-Sprache-Modell,
+  // da pro ohnehin stärker ist). Sonst hebt Leichte Sprache das Standard-Lite an.
+  const model = trimmed.length > 50000 ? LONG_MODEL : (plain ? PLAIN_MODEL : MODEL);
   return {
     model,
     max_tokens: maxTokens,

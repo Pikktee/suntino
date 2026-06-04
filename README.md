@@ -5,7 +5,7 @@
 Suntino ist ein schlankes Chrome-Plugin, das den Text der aktuellen Website an einen Backend-Service schickt
 und strukturiert zusammenfassen lässt. Es läuft im **Seitenfenster** (Side Panel) und startet
 beim Öffnen **sofort** die Zusammenfassung. Optionen direkt im Panel: **Länge** (Kurz / Mittel / Lang)
-und **Einfache Sprache** — jederzeit änderbar (erzeugt sofort neu) und dauerhaft gespeichert.
+und **Leichte Sprache** — jederzeit änderbar (erzeugt sofort neu) und dauerhaft gespeichert.
 
 ## Aufbau
 

@@ -53,7 +53,7 @@ The extension extracts page text by injecting `pageExtractor()` into the active 
 - Style and length controls are custom dropdowns (`select-trigger` + `select-menu`, not native `<select>`) near the source card; avoid showing all modes as large cards in the main view. The code still uses historical `fokus` ids internally. The style dropdown shows each style's optional `desc` under its name. (Zielsprache in settings stays a native `<select>` due to its long option list.)
 - The uppercase `Stil`/`Länge` label sits inside the bordered `select-trigger` (left of the value), not as a separate element outside the box.
 - Deleting a style or resetting styles to defaults must go through the in-panel confirmation dialog (`askConfirm`), never a native `confirm()`.
-- Settings has a `Barrierefreiheit` section holding the font-size control and `Einfache Sprache`. Font size is a segmented A-button control (`#fontSizeSeg`, `prefs.fontSize` ∈ `normal|gross|sehrgross`) that only scales the reading area (summary + Q&A) via `--reading-scale` / `data-fontsize` on `#summaryScroll` — it does not regenerate the summary and does not scale the rest of the UI. Summary/Q&A inner sizes are `em`-relative so they scale together. (Chrome's page zoom does not work reliably in the side panel, hence the dedicated setting.)
+- Settings has a `Barrierefreiheit` section holding the font-size control and `Leichte Sprache` (Easy Language — the legally defined, stricter A1/A2 accessibility register, not the looser B1 "Einfache Sprache"; internally still the `prefs.plain` flag and `prompts/partials/plain.mustache`). Font size is a segmented A-button control (`#fontSizeSeg`, `prefs.fontSize` ∈ `normal|gross|sehrgross`) that only scales the reading area (summary + Q&A) via `--reading-scale` / `data-fontsize` on `#summaryScroll` — it does not regenerate the summary and does not scale the rest of the UI. Summary/Q&A inner sizes are `em`-relative so they scale together. (Chrome's page zoom does not work reliably in the side panel, hence the dedicated setting.)
 - The source card, the summary-specific `actionBar`, and the result share one bordered `.summary-block`: the `.summary-header` (favicon + title + word count, with the `actionBar` right-aligned beneath it) sits on top, the scrolling reading area (`#result` / `#summaryScroll`) below. `.summary-block` carries `min-width: 0` so the reading area wraps instead of overflowing; `.summary-block:has(.result[hidden])` collapses the card to just the header when there is no summary yet.
 - The `actionBar` holds only summary-related actions: `reload` (always visible), plus `tts` and `share` (shown once a summary exists). The app-level `settings` button (`#settingsBtn`, `.settings-control`) is the third cell of the `control-strip`, right of the `Stil`/`Länge` dropdowns — not in the `actionBar`. There is no separate top bar.
 - The `share` button opens a small dropdown menu (`shareMenu`) holding `copy` and Markdown download; it is the place for future export options. Close it on outside-click, Escape, action, or when opening settings.
@@ -112,7 +112,7 @@ Focus points carry an optional `desc` field (client-only, persisted in `focusPoi
 
 ## Model selection
 
-Default models live in `server.js:12-15` (NOT the README — the README is outdated). The server selects models based on content type:
+Default models live near the top of `server.js` (NOT the README — the README is outdated). The server selects models based on content type:
 
 | Content | Model env var | Default |
 |---|---|---|
@@ -120,6 +120,9 @@ Default models live in `server.js:12-15` (NOT the README — the README is outda
 | Video | `OPENROUTER_VIDEO_MODEL` | `google/gemini-2.5-flash` |
 | PDF | `OPENROUTER_PDF_MODEL` | `google/gemini-2.5-flash` |
 | Long text (>50k chars) | `OPENROUTER_LONG_MODEL` | `google/gemini-2.5-pro` |
+| Text + `Leichte Sprache` (`plain`) | `OPENROUTER_PLAIN_MODEL` | `google/gemini-2.5-flash` |
+
+`Leichte Sprache` (the `plain` flag) lifts normal text from the lite model to `PLAIN_MODEL` because its grammar rules (no genitive, verbs over nouns, max sentence length, explaining hard words) need a stronger model. Long text (>50k) still wins and uses `LONG_MODEL` (pro is stronger anyway); video/PDF keep their own models.
 
 ## Summary length & token budget
 
