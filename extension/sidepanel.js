@@ -1,5 +1,6 @@
-const BACKEND = 'http://localhost:3000';
+const BACKEND = 'https://suntino.henrikheil.net';
 const SUMMARY_CACHE_VERSION = 2;
+const DONATION_URL = 'https://ko-fi.com/pikktee';
 
 const els = {
   mainView: document.getElementById('mainView'),
@@ -36,6 +37,9 @@ const els = {
   settingsBtn: document.getElementById('settingsBtn'),
   settingsClose: document.getElementById('settingsClose'),
   settingsPanel: document.getElementById('settingsPanel'),
+  apiKeyInput: document.getElementById('apiKeyInput'),
+  apiKeySaveBtn: document.getElementById('apiKeySaveBtn'),
+  donateBtn: document.getElementById('donateBtn'),
   customFocusList: document.getElementById('customFocusList'),
   customFocusForm: document.getElementById('customFocusForm'),
   customFocusEditorTitle: document.getElementById('customFocusEditorTitle'),
@@ -59,8 +63,19 @@ const els = {
   confirmCancel: document.getElementById('confirmCancel'),
 };
 
-function showError(msg) { els.error.textContent = msg; els.error.hidden = false; }
+function showError(msg, { openSettingsBtn = false } = {}) {
+  if (openSettingsBtn) {
+    els.error.innerHTML = escapeHtml(msg) +
+      ` <button class="error-link" type="button" data-error-action="settings">${escapeHtml(t('error.openSettings'))}</button>`;
+  } else {
+    els.error.textContent = msg;
+  }
+  els.error.hidden = false;
+}
 function clearError() { els.error.hidden = true; els.error.textContent = ''; }
+els.error.addEventListener('click', (e) => {
+  if (e.target.closest('[data-error-action="settings"]')) openSettings();
+});
 let toastTimer = null;
 function showToast(msg) {
   clearTimeout(toastTimer);
@@ -133,6 +148,7 @@ let prefs = {
   autoRun: false,
   fontSize: 'normal',
   focusPoints: cloneDefaultFocusPoints(),
+  apiKey: '',
 };
 let lastKey = null;
 let currentMarkdown = '';
@@ -150,7 +166,7 @@ let settingsRefreshPending = false;
 /* ====================================================================== */
 
 async function loadPrefs() {
-  const saved = await chrome.storage.local.get(['fokus', 'length', 'uiLang', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses']);
+  const saved = await chrome.storage.local.get(['fokus', 'length', 'uiLang', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses', 'apiKey']);
   // UI-Sprache zuerst auflösen, damit die Default-Stile gleich lokalisiert geseedet werden.
   if (saved.uiLang) prefs.uiLang = saved.uiLang;
   setActiveUiLang(resolveUiLang(prefs.uiLang));
@@ -169,6 +185,7 @@ async function loadPrefs() {
     ];
   }
   if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
+  if (typeof saved.apiKey === 'string') prefs.apiKey = saved.apiKey;
   // Unveränderte eingebaute Default-Stile auf die aktive UI-Sprache bringen.
   if (localizePristineDefaults()) savePrefs();
 }
@@ -179,6 +196,7 @@ function savePrefs() {
     zielsprache: prefs.zielsprache, autoRun: prefs.autoRun,
     fontSize: prefs.fontSize,
     focusPoints: prefs.focusPoints,
+    apiKey: prefs.apiKey,
   });
 }
 function normalizeLanguage(lang) {
@@ -210,6 +228,7 @@ function reflectPrefs() {
   els.autoRun.checked = prefs.autoRun;
   applyFontSize();
   renderCustomFocusList();
+  if (els.apiKeyInput) els.apiKeyInput.value = prefs.apiKey;
 }
 
 /* ====================================================================== */
@@ -669,10 +688,19 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   let acc = '';
   try {
     const r = await fetch(`${BACKEND}/api/summarize`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(prefs.apiKey ? { 'X-Api-Key': prefs.apiKey } : {}) },
       body: JSON.stringify(body), signal: abort.signal,
     });
-    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || t('error.backendShort')); }
+    if (!r.ok) {
+      if (r.status === 429) {
+        const err = new Error(t('error.rateLimit'));
+        err.isRateLimit = true;
+        throw err;
+      }
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || t('error.backendShort'));
+    }
     await consumeSse(r, (delta) => {
       acc += delta;
       els.summary.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
@@ -693,7 +721,10 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
     hideSummaryActions();
     setQaReady(false);
     const networkLike = e.message.includes('Failed to fetch') || e.message === t('error.backendShort');
-    showError(networkLike ? t('error.backendUnreachable') : e.message);
+    showError(
+      networkLike ? t('error.backendUnreachable') : e.message,
+      { openSettingsBtn: e.isRateLimit }
+    );
   } finally {
     els.reloadBtn.classList.remove('spinning');
   }
@@ -876,7 +907,8 @@ async function askQuestion(question) {
   let acc = '';
   try {
     const r = await fetch(`${BACKEND}/api/qa`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(prefs.apiKey ? { 'X-Api-Key': prefs.apiKey } : {}) },
       body: JSON.stringify({
         text: page.text, summary: currentMarkdown, title: page.title, url: page.url, question,
         history: qaHistory.slice(0, -1), zielsprache: targetLanguage(), plain: prefs.plain,
@@ -1008,6 +1040,12 @@ els.uiLang.addEventListener('change', () => {
 els.zielsprache.addEventListener('change', () => { prefs.zielsprache = normalizeLanguage(els.zielsprache.value); onSettingsChange({ refreshSummary: true }); });
 els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onSettingsChange({ refreshSummary: true }); });
 els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; onSettingsChange(); });
+els.donateBtn?.addEventListener('click', () => { chrome.tabs.create({ url: DONATION_URL }); });
+els.apiKeySaveBtn.addEventListener('click', () => {
+  prefs.apiKey = els.apiKeyInput.value.trim();
+  savePrefs();
+  showToast(t('toast.apiKeySaved'));
+});
 
 function setFontSize(size) {
   if (!FONT_SIZES.has(size) || size === prefs.fontSize) return;

@@ -162,6 +162,17 @@
           </span>
         </label>
 
+        <div class="set-row set-row--static set-row--col">
+          <span class="set-text"><span class="set-title" data-i18n="settings.apiKey">Eigener API-Key</span><span class="set-desc" data-i18n="settings.apiKeyDesc">OpenRouter-Key · hebt das Tageslimit auf</span></span>
+          <div class="api-key-field">
+            <input type="password" id="apiKeyInput" class="api-key-input"
+                   data-i18n-placeholder="settings.apiKeyPlaceholder"
+                   placeholder="sk-or-..."
+                   autocomplete="off" spellcheck="false" />
+            <button type="button" class="mini-btn mini-btn--primary" id="apiKeySaveBtn" data-i18n="settings.apiKeySave">Speichern</button>
+          </div>
+        </div>
+
         <div class="set-row set-row--static">
           <span class="set-text"><span class="set-title" data-i18n="settings.cacheClear">Cache leeren</span><span class="set-desc" data-i18n="settings.cacheClearDesc">Gespeicherte Zusammenfassungen &amp; Rückfragen löschen</span></span>
           <button class="mini-btn mini-btn--danger" id="cacheClearBtn" type="button">
@@ -213,6 +224,13 @@
         <div class="custom-focus-list" id="customFocusList"></div>
       </div>
     </section>
+
+    <div class="donate-card">
+      <p class="donate-text" data-i18n="donate.desc">Suntino ist kostenlos — und bleibt es auch. Falls es dir Zeit spart, freue ich mich sehr über einen Kaffee. Das hilft, die laufenden Kosten für KI und Server zu decken.</p>
+      <button type="button" class="mini-btn mini-btn--donate" id="donateBtn">
+        ☕ <span data-i18n="donate.btn">Einen Kaffee spendieren</span>
+      </button>
+    </div>
 
     <div class="focus-dialog-scrim" id="focusDialogScrim" hidden></div>
     <div class="focus-dialog" id="focusDialog" role="dialog" aria-modal="true" aria-labelledby="customFocusEditorTitle" hidden>

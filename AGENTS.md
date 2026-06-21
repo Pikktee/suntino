@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Suntino — Chrome extension (Manifest V3) that summarizes web pages, YouTube videos, and PDFs. Opens in the Side Panel. Backend is a local Express server that proxies OpenRouter via the OpenAI SDK. Single-package, no monorepo.
+Suntino — Chrome extension (Manifest V3) that summarizes web pages, YouTube videos, and PDFs. Opens in the Side Panel. Backend is an Express server hosted on Railway at `https://suntino.henrikheil.net`, deployed automatically via GitHub Actions on push to `main`. Single-package, no monorepo.
 
 ## Commands
 
@@ -23,7 +23,7 @@ node --check extension/sidepanel.js
 
 - Copy `.env.example` → `.env` and set `OPENROUTER_API_KEY` (required; server warns if missing)
 - Load the extension in Chrome: `chrome://extensions` → "Entpackt laden" → select `extension/`
-- The extension hardcodes `BACKEND = 'http://localhost:3000'` in `extension/sidepanel.js:1`. If you change `PORT` in `.env`, update both.
+- The extension points to `BACKEND = 'https://suntino.henrikheil.net'` in `extension/sidepanel.js:1`. For local development, temporarily change this to `'http://localhost:3000'`.
 
 ## Architecture
 

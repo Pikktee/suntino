@@ -40,16 +40,43 @@ const client = hasKey
     })
   : null;
 if (!hasKey) {
-  console.warn('\n[!] OPENROUTER_API_KEY ist nicht gesetzt. Kopiere .env.example nach .env und trage deinen Key ein.\n');
+  console.warn('\n[!] OPENROUTER_API_KEY ist nicht gesetzt. Nutze deinen eigenen Key im Plugin oder lege eine .env an.\n');
+}
+
+/* ---------- Rate-Limiting (10 Zusammenfassungen/Tag pro IP, ohne eigenen Key) ---------- */
+const DAILY_LIMIT = 10;
+const rateLimits = new Map(); // ip → { count, resetAt }
+
+function nextMidnightUtc() {
+  const d = new Date(); d.setUTCHours(24, 0, 0, 0); return d.getTime();
+}
+function checkRateLimit(ip) {
+  const now = Date.now();
+  let e = rateLimits.get(ip) || { count: 0, resetAt: nextMidnightUtc() };
+  if (now >= e.resetAt) e = { count: 0, resetAt: nextMidnightUtc() };
+  if (e.count >= DAILY_LIMIT) { rateLimits.set(ip, e); return false; }
+  e.count++;
+  rateLimits.set(ip, e);
+  return true;
+}
+// Stale Einträge stündlich aufräumen
+setInterval(() => { const now = Date.now(); for (const [ip, e] of rateLimits) if (now >= e.resetAt) rateLimits.delete(ip); }, 3_600_000);
+
+function clientFor(userKey) {
+  if (userKey) {
+    return new OpenAI({ apiKey: userKey, baseURL: 'https://openrouter.ai/api/v1', defaultHeaders: { 'X-Title': 'Suntino' } });
+  }
+  return client;
 }
 
 const app = express();
+app.set('trust proxy', 1); // Railway / Reverse-Proxy: echte Client-IP aus X-Forwarded-For
 app.use(express.json({ limit: '12mb' }));
 
 /* ---------- CORS ---------- */
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -293,11 +320,11 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
 
 function friendly(err) {
   const status = err?.status;
-  if (!hasKey) return 'Backend ohne API-Key. Trage OPENROUTER_API_KEY in die .env ein und starte den Server neu.';
-  if (status === 401) return 'Ungültiger oder fehlender OpenRouter-API-Key (.env prüfen).';
+  if (!err) return 'Kein API-Key verfügbar. Trage deinen OpenRouter-Key in den Plugin-Einstellungen ein.';
+  if (status === 401) return 'Ungültiger API-Key. Bitte in den Einstellungen prüfen.';
   if (status === 402) return 'OpenRouter-Guthaben aufgebraucht oder Limit erreicht.';
   if (status === 404) return `Modell bei OpenRouter nicht gefunden (OPENROUTER_MODEL prüfen).`;
-  if (status === 429) return 'Rate-Limit erreicht. Bitte kurz warten.';
+  if (status === 429) return 'Rate-Limit bei OpenRouter erreicht. Bitte kurz warten.';
   if (status >= 500) return 'Server-Fehler bei OpenRouter. Bitte erneut versuchen.';
   return err?.message || 'Unbekannter Fehler.';
 }
@@ -310,11 +337,11 @@ function openSse(res) {
   res.flushHeaders?.();
 }
 
-async function streamCompletion(res, payload) {
+async function streamCompletion(res, payload, activeClient) {
   const body = { temperature: 0.3, max_tokens: 2048, stream: true, ...payload };
   // OpenRouter akzeptiert "plugins" als Top-Level-Feld — der OpenAI-SDK schickt
   // unbekannte Felder als Teil des JSON-Body mit, also reicht das.
-  const stream = await client.chat.completions.create(body);
+  const stream = await activeClient.chat.completions.create(body);
   for await (const chunk of stream) {
     const delta = chunk.choices?.[0]?.delta?.content;
     if (delta) res.write(`data: ${JSON.stringify({ delta })}\n\n`);
@@ -328,7 +355,12 @@ async function streamCompletion(res, payload) {
 /* ====================================================================== */
 
 app.post('/api/summarize', async (req, res) => {
-  if (!hasKey) return res.status(503).json({ error: friendly() });
+  const userKey = (req.headers['x-api-key'] || '').trim();
+  const activeClient = clientFor(userKey);
+  if (!activeClient) return res.status(503).json({ error: friendly() });
+  if (!userKey && !checkRateLimit(req.ip || 'unknown')) {
+    return res.status(429).json({ error: 'rate_limit', limit: DAILY_LIMIT });
+  }
 
   const b = req.body || {};
   const length = ['kurz', 'mittel', 'lang'].includes(b.length) ? b.length : 'mittel';
@@ -361,7 +393,7 @@ app.post('/api/summarize', async (req, res) => {
   openSse(res);
   try {
     const payload = buildMessages({ kind, text, url, title, length, fokus, customFocus, plain, zielsprache });
-    await streamCompletion(res, payload);
+    await streamCompletion(res, payload, activeClient);
   } catch (err) {
     console.error('summarize error:', err?.status, err?.message);
     res.write(`event: error\ndata: ${JSON.stringify({ message: friendly(err) })}\n\n`);
@@ -374,7 +406,9 @@ app.post('/api/summarize', async (req, res) => {
 /* ====================================================================== */
 
 app.post('/api/qa', async (req, res) => {
-  if (!hasKey) return res.status(503).json({ error: friendly() });
+  const userKey = (req.headers['x-api-key'] || '').trim();
+  const activeClient = clientFor(userKey);
+  if (!activeClient) return res.status(503).json({ error: friendly() });
 
   const b = req.body || {};
   const text = String(b.text || '').trim().slice(0, 80000);
@@ -418,7 +452,7 @@ app.post('/api/qa', async (req, res) => {
 
   openSse(res);
   try {
-    await streamCompletion(res, { model: text.length > 50000 || summary.length > 15000 ? LONG_MODEL : MODEL, messages });
+    await streamCompletion(res, { model: text.length > 50000 || summary.length > 15000 ? LONG_MODEL : MODEL, messages }, activeClient);
   } catch (err) {
     console.error('qa error:', err?.status, err?.message);
     res.write(`event: error\ndata: ${JSON.stringify({ message: friendly(err) })}\n\n`);
