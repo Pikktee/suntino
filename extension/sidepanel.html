@@ -5,6 +5,48 @@
 <link rel="stylesheet" href="sidepanel.css" />
 </head>
 <body>
+  <!-- ============ Onboarding (Erststart) ============ -->
+  <section class="onboarding-view app-view" id="onboardingView" hidden>
+    <div class="onboarding-hero">
+      <img src="icons/icon.svg" width="56" height="56" alt="Suntino">
+      <h1 class="onboarding-title" data-i18n="onboarding.title">Willkommen bei Suntino</h1>
+      <p class="onboarding-sub" data-i18n="onboarding.sub">KI-Zusammenfassungen von Webseiten, YouTube-Videos und PDFs.</p>
+    </div>
+    <ul class="onboarding-features">
+      <li class="onboarding-feature">
+        <span class="onboarding-feat-icon" aria-hidden="true">⚡</span>
+        <span class="onboarding-feat-text">
+          <strong data-i18n="onboarding.freeTitle">10 Zusammenfassungen täglich – kostenlos</strong>
+          <span data-i18n="onboarding.freeDesc">Keine Anmeldung, kein API-Key nötig.</span>
+        </span>
+      </li>
+      <li class="onboarding-feature">
+        <span class="onboarding-feat-icon" aria-hidden="true">🔑</span>
+        <span class="onboarding-feat-text">
+          <strong data-i18n="onboarding.keyTitle">Eigener Anbieter: unbegrenzt</strong>
+          <span data-i18n="onboarding.keyDesc">OpenRouter, Google, OpenAI oder Anthropic verbinden – kein Tageslimit.</span>
+        </span>
+      </li>
+      <li class="onboarding-feature">
+        <span class="onboarding-feat-icon" aria-hidden="true">🌍</span>
+        <span class="onboarding-feat-text">
+          <strong data-i18n="onboarding.langTitle">Über 35 Sprachen</strong>
+          <span data-i18n="onboarding.langDesc">Stil, Länge & Leichte Sprache frei wählbar.</span>
+        </span>
+      </li>
+    </ul>
+    <div class="onboarding-actions">
+      <button type="button" class="mini-btn mini-btn--primary onboarding-start-btn" id="onboardingStart" data-i18n="onboarding.start">Los geht's!</button>
+      <button type="button" class="onboarding-connect-btn" id="onboardingConnect" data-i18n="onboarding.connect">Eigenes Modell verbinden</button>
+    </div>
+    <div class="onboarding-donate">
+      <p data-i18n="onboarding.donateDesc">Suntino bleibt kostenlos. Falls es dir Zeit spart, freue ich mich sehr über einen Kaffee.</p>
+      <button type="button" class="mini-btn mini-btn--donate" id="onboardingDonateBtn">
+        ☕ <span data-i18n="onboarding.donateBtn">Ko-fi besuchen</span>
+      </button>
+    </div>
+  </section>
+
   <main class="app-view app-view--main" id="mainView">
   <!-- ============ Kompakte Steuerung + Einstellungen ============ -->
   <section class="control-strip" aria-label="Zusammenfassung steuern">
@@ -79,7 +121,6 @@
   </div>
 
   <p class="error" id="error" role="alert" hidden></p>
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <form class="qa-dock is-disabled" id="qaForm" aria-disabled="true">
     <input class="qa-input" id="qaInput" type="text" data-i18n-placeholder="qa.placeholder" placeholder="Rückfrage zur Seite stellen..." autocomplete="off" disabled />
@@ -97,6 +138,16 @@
         <span data-i18n="settings.back">Zurück</span>
       </button>
       <h2 data-i18n="settings.title">Einstellungen</h2>
+    </div>
+
+    <div class="donate-card" id="donateCard">
+      <p class="donate-text" data-i18n="donate.desc">Suntino ist kostenlos — und bleibt es auch. Falls es dir Zeit spart, freue ich mich sehr über einen Kaffee ☕</p>
+      <div class="donate-actions">
+        <button type="button" class="mini-btn mini-btn--donate" id="donateBtn">
+          ☕ <span data-i18n="donate.btn">Einen Kaffee spendieren</span>
+        </button>
+        <button type="button" class="donate-already-btn" id="alreadyDonatedBtn" data-i18n="donate.alreadyDonated">Bereits gespendet ✓</button>
+      </div>
     </div>
 
     <section class="settings-section" aria-labelledby="generalSettingsTitle">
@@ -162,15 +213,9 @@
           </span>
         </label>
 
-        <div class="set-row set-row--static set-row--col">
-          <span class="set-text"><span class="set-title" data-i18n="settings.apiKey">Eigener API-Key</span><span class="set-desc" data-i18n="settings.apiKeyDesc">OpenRouter-Key · hebt das Tageslimit auf</span></span>
-          <div class="api-key-field">
-            <input type="password" id="apiKeyInput" class="api-key-input"
-                   data-i18n-placeholder="settings.apiKeyPlaceholder"
-                   placeholder="sk-or-..."
-                   autocomplete="off" spellcheck="false" />
-            <button type="button" class="mini-btn mini-btn--primary" id="apiKeySaveBtn" data-i18n="settings.apiKeySave">Speichern</button>
-          </div>
+        <div class="set-row set-row--static" id="providerRow">
+          <span class="set-text"><span class="set-title" data-i18n="settings.connection">KI-Anbieter</span><span class="set-desc" id="providerStatus" data-i18n="settings.connectionFree">Gratis · 10 Zusammenfassungen/Tag</span></span>
+          <button type="button" class="mini-btn mini-btn--primary connect-btn" id="connectBtn" data-i18n="settings.manageConnection">Verbindung einrichten</button>
         </div>
 
         <div class="set-row set-row--static">
@@ -225,13 +270,6 @@
       </div>
     </section>
 
-    <div class="donate-card">
-      <p class="donate-text" data-i18n="donate.desc">Suntino ist kostenlos — und bleibt es auch. Falls es dir Zeit spart, freue ich mich sehr über einen Kaffee. Das hilft, die laufenden Kosten für KI und Server zu decken.</p>
-      <button type="button" class="mini-btn mini-btn--donate" id="donateBtn">
-        ☕ <span data-i18n="donate.btn">Einen Kaffee spendieren</span>
-      </button>
-    </div>
-
     <div class="focus-dialog-scrim" id="focusDialogScrim" hidden></div>
     <div class="focus-dialog" id="focusDialog" role="dialog" aria-modal="true" aria-labelledby="customFocusEditorTitle" hidden>
       <form class="custom-focus-form" id="customFocusForm">
@@ -271,6 +309,59 @@
     </div>
   </section>
 
+  <!-- ============ Verbindungs-Assistent ============ -->
+  <div class="wizard-scrim" id="wizardScrim" hidden></div>
+  <div class="wizard" id="wizard" role="dialog" aria-modal="true" aria-labelledby="wizardTitle" hidden>
+    <div class="wizard-head">
+      <button class="icon-btn" id="wizardBack" type="button" hidden data-i18n-aria-label="wizard.back">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h4 id="wizardTitle" data-i18n="wizard.title">KI-Anbieter verbinden</h4>
+      <button class="icon-btn" id="wizardClose" type="button" data-i18n-aria-label="editor.close">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Schritt 1: Anbieter wählen -->
+    <div class="wizard-step" id="wizardStep1">
+      <p class="wizard-intro" data-i18n="wizard.intro">Wähle, womit Suntino Seiten zusammenfasst. Abos wie ChatGPT Plus funktionieren nicht – nötig ist ein API-Key (teils mit Gratis-Kontingent).</p>
+      <div class="provider-list" id="providerList"><!-- Karten aus sidepanel.js --></div>
+    </div>
+
+    <!-- Schritt 2: Key + Modell -->
+    <div class="wizard-step" id="wizardStep2" hidden>
+      <div class="wiz-provider-head">
+        <span class="wiz-provider-name" id="wizProviderName"></span>
+        <span class="wiz-provider-badge" id="wizProviderBadge" hidden data-i18n="wizard.freeBadge">Gratis-Kontingent</span>
+      </div>
+      <p class="wiz-keyhint" id="wizKeyHint"></p>
+      <a class="wizard-link" id="wizKeyLink" target="_blank" rel="noopener noreferrer">
+        <span data-i18n="wizard.getKey">Key holen</span>
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+      <div class="api-key-field">
+        <input type="password" id="wizKeyInput" class="api-key-input" autocomplete="off" spellcheck="false" />
+        <button type="button" class="mini-btn" id="wizTestBtn" data-i18n="wizard.test">Testen</button>
+      </div>
+      <p class="wiz-status" id="wizStatus" role="status" aria-live="polite" hidden></p>
+
+      <div class="wiz-tier">
+        <span class="set-title" data-i18n="wizard.model">Modell-Stufe</span>
+        <div class="segmented segmented--wide" id="wizTierSeg" role="radiogroup" data-i18n-aria-label="wizard.model">
+          <button type="button" class="seg-btn" data-tier="fast" role="radio" aria-checked="false" data-i18n="wizard.tierFast">Schnell</button>
+          <button type="button" class="seg-btn" data-tier="balanced" role="radio" aria-checked="true" data-i18n="wizard.tierBalanced">Ausgewogen</button>
+          <button type="button" class="seg-btn" data-tier="strong" role="radio" aria-checked="false" data-i18n="wizard.tierStrong">Stärker</button>
+        </div>
+        <span class="wiz-model-id" id="wizModelId"></span>
+      </div>
+
+      <div class="wizard-actions">
+        <button class="mini-btn mini-btn--primary" id="wizSaveBtn" type="button" data-i18n="wizard.save">Verbinden</button>
+      </div>
+      <p class="wizard-privacy" data-i18n="wizard.privacy">Dein Key wird nur auf diesem Gerät gespeichert und geht direkt an den Anbieter – nicht über Suntinos Server.</p>
+    </div>
+  </div>
+
   <!-- ============ Bestätigungsdialog ============ -->
   <div class="confirm-scrim" id="confirmScrim" hidden></div>
   <div class="confirm-dialog" id="confirmDialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText" hidden>
@@ -282,7 +373,11 @@
     </div>
   </div>
 
+  <!-- Toast: top-level, damit er auch über Onboarding/Assistent sichtbar ist (nicht im versteckten mainView) -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
   <script src="i18n.js"></script>
+  <script src="llm.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

@@ -37,9 +37,34 @@ const els = {
   settingsBtn: document.getElementById('settingsBtn'),
   settingsClose: document.getElementById('settingsClose'),
   settingsPanel: document.getElementById('settingsPanel'),
-  apiKeyInput: document.getElementById('apiKeyInput'),
-  apiKeySaveBtn: document.getElementById('apiKeySaveBtn'),
   donateBtn: document.getElementById('donateBtn'),
+  donateCard: document.getElementById('donateCard'),
+  alreadyDonatedBtn: document.getElementById('alreadyDonatedBtn'),
+  // Onboarding
+  onboardingView: document.getElementById('onboardingView'),
+  onboardingStart: document.getElementById('onboardingStart'),
+  onboardingConnect: document.getElementById('onboardingConnect'),
+  onboardingDonateBtn: document.getElementById('onboardingDonateBtn'),
+  // Anbieter & Verbindungs-Assistent
+  providerStatus: document.getElementById('providerStatus'),
+  connectBtn: document.getElementById('connectBtn'),
+  wizard: document.getElementById('wizard'),
+  wizardScrim: document.getElementById('wizardScrim'),
+  wizardClose: document.getElementById('wizardClose'),
+  wizardBack: document.getElementById('wizardBack'),
+  wizardStep1: document.getElementById('wizardStep1'),
+  wizardStep2: document.getElementById('wizardStep2'),
+  providerList: document.getElementById('providerList'),
+  wizProviderName: document.getElementById('wizProviderName'),
+  wizProviderBadge: document.getElementById('wizProviderBadge'),
+  wizKeyHint: document.getElementById('wizKeyHint'),
+  wizKeyLink: document.getElementById('wizKeyLink'),
+  wizKeyInput: document.getElementById('wizKeyInput'),
+  wizTestBtn: document.getElementById('wizTestBtn'),
+  wizStatus: document.getElementById('wizStatus'),
+  wizTierSeg: document.getElementById('wizTierSeg'),
+  wizModelId: document.getElementById('wizModelId'),
+  wizSaveBtn: document.getElementById('wizSaveBtn'),
   customFocusList: document.getElementById('customFocusList'),
   customFocusForm: document.getElementById('customFocusForm'),
   customFocusEditorTitle: document.getElementById('customFocusEditorTitle'),
@@ -148,7 +173,13 @@ let prefs = {
   autoRun: false,
   fontSize: 'normal',
   focusPoints: cloneDefaultFocusPoints(),
-  apiKey: '',
+  // Anbieter & eigene Keys (Hybrid-Modell, s. llm.js).
+  // provider: 'free' (Backend/Gratis) | 'openrouter' | 'google' | 'openai' | 'anthropic'
+  provider: 'free',
+  apiKeys: { openrouter: '', google: '', openai: '', anthropic: '' },
+  modelTier: 'balanced', // 'fast' | 'balanced' | 'strong'
+  onboardingSeen: false,
+  donated: false,
 };
 let lastKey = null;
 let currentMarkdown = '';
@@ -166,7 +197,7 @@ let settingsRefreshPending = false;
 /* ====================================================================== */
 
 async function loadPrefs() {
-  const saved = await chrome.storage.local.get(['fokus', 'length', 'uiLang', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses', 'apiKey']);
+  const saved = await chrome.storage.local.get(['fokus', 'length', 'uiLang', 'plain', 'zielsprache', 'autoRun', 'fontSize', 'focusPoints', 'customFocuses', 'apiKey', 'provider', 'apiKeys', 'modelTier', 'onboardingSeen', 'donated']);
   // UI-Sprache zuerst auflösen, damit die Default-Stile gleich lokalisiert geseedet werden.
   if (saved.uiLang) prefs.uiLang = saved.uiLang;
   setActiveUiLang(resolveUiLang(prefs.uiLang));
@@ -185,7 +216,36 @@ async function loadPrefs() {
     ];
   }
   if (!getFocusById(prefs.fokus)) prefs.fokus = 'standard';
-  if (typeof saved.apiKey === 'string') prefs.apiKey = saved.apiKey;
+
+  // Anbieter & Keys laden.
+  if (saved.apiKeys && typeof saved.apiKeys === 'object') {
+    for (const id of LLM_PROVIDERS) {
+      if (typeof saved.apiKeys[id] === 'string') prefs.apiKeys[id] = saved.apiKeys[id];
+    }
+  }
+  if (LLM_PROVIDERS.includes(saved.provider) || saved.provider === 'free') prefs.provider = saved.provider;
+  if (LLM_TIERS.includes(saved.modelTier)) prefs.modelTier = saved.modelTier;
+  prefs.onboardingSeen = Boolean(saved.onboardingSeen);
+  if (typeof saved.donated === 'boolean') prefs.donated = saved.donated;
+  // Migration: der alte, einzelne apiKey war stets ein OpenRouter-Key.
+  if (typeof saved.apiKey === 'string' && saved.apiKey && !prefs.apiKeys.openrouter) {
+    prefs.apiKeys.openrouter = saved.apiKey;
+    if (prefs.provider === 'free') prefs.provider = 'openrouter';
+    savePrefs();
+  }
+  // Bestandsnutzer haben die App schon konfiguriert → kein Onboarding zeigen.
+  // (onboardingSeen ist neu; frühere Versionen kannten es nicht, schrieben aber
+  // stets andere prefs — deren Vorhandensein verrät einen Bestandsnutzer.)
+  if (!prefs.onboardingSeen && (
+    typeof saved.apiKey === 'string' || saved.apiKeys !== undefined ||
+    saved.fokus !== undefined || saved.length !== undefined ||
+    saved.zielsprache !== undefined || saved.uiLang !== undefined ||
+    Array.isArray(saved.focusPoints)
+  )) {
+    prefs.onboardingSeen = true;
+    savePrefs();
+  }
+
   // Unveränderte eingebaute Default-Stile auf die aktive UI-Sprache bringen.
   if (localizePristineDefaults()) savePrefs();
 }
@@ -196,8 +256,17 @@ function savePrefs() {
     zielsprache: prefs.zielsprache, autoRun: prefs.autoRun,
     fontSize: prefs.fontSize,
     focusPoints: prefs.focusPoints,
-    apiKey: prefs.apiKey,
+    provider: prefs.provider,
+    apiKeys: prefs.apiKeys,
+    modelTier: prefs.modelTier,
+    onboardingSeen: prefs.onboardingSeen,
+    donated: prefs.donated,
   });
+}
+
+// Aktiver Key des gewählten Anbieters ('' wenn Gratis-Modus).
+function activeApiKey() {
+  return prefs.provider !== 'free' ? (prefs.apiKeys[prefs.provider] || '') : '';
 }
 function normalizeLanguage(lang) {
   const raw = String(lang || 'auto');
@@ -228,7 +297,17 @@ function reflectPrefs() {
   els.autoRun.checked = prefs.autoRun;
   applyFontSize();
   renderCustomFocusList();
-  if (els.apiKeyInput) els.apiKeyInput.value = prefs.apiKey;
+  updateProviderStatus();
+  applyDonated();
+}
+
+// Versteckt die Spenden-Aufforderungen (Onboarding + Einstellungen), sobald der
+// Nutzer „Bereits gespendet" gewählt hat.
+function applyDonated() {
+  const hide = !!prefs.donated;
+  if (els.donateCard) els.donateCard.hidden = hide;
+  const onboardingDonate = els.onboardingView && els.onboardingView.querySelector('.onboarding-donate');
+  if (onboardingDonate) onboardingDonate.hidden = hide;
 }
 
 /* ====================================================================== */
@@ -677,33 +756,20 @@ async function summarize({ force = false, fokusOverride = null } = {}) {
   els.summary.innerHTML = `<div class="summary-loading"><span class="loading-spinner" aria-hidden="true"></span><span>${escapeHtml(t('summary.loading'))}</span></div>`;
   els.summaryScroll.scrollTop = 0;
 
-  const body = {
-    kind: page.kind, text: page.text, title: page.title, url: page.url,
-    length: prefs.length,
-    fokus: focusToBackend(fokus),
-    customFocus: focusPromptForBackend(fokus),
-    plain: prefs.plain, zielsprache: targetLanguage(),
-  };
-
   let acc = '';
   try {
-    const r = await fetch(`${BACKEND}/api/summarize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(prefs.apiKey ? { 'X-Api-Key': prefs.apiKey } : {}) },
-      body: JSON.stringify(body), signal: abort.signal,
-    });
-    if (!r.ok) {
-      if (r.status === 429) {
-        const err = new Error(t('error.rateLimit'));
-        err.isRateLimit = true;
-        throw err;
-      }
-      const d = await r.json().catch(() => ({}));
-      throw new Error(d.error || t('error.backendShort'));
-    }
-    await consumeSse(r, (delta) => {
-      acc += delta;
-      els.summary.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
+    await LLM.streamSummary({
+      provider: prefs.provider, key: activeApiKey(), tier: prefs.modelTier, backend: BACKEND,
+      kind: page.kind, text: page.text, title: page.title, url: page.url,
+      sourceWords: wordCount(page.text),
+      length: prefs.length,
+      fokus: focusToBackend(fokus),
+      customFocus: focusPromptForBackend(fokus),
+      plain: prefs.plain, zielsprache: targetLanguage(), signal: abort.signal,
+      onDelta: (delta) => {
+        acc += delta;
+        els.summary.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
+      },
     });
 
     currentMarkdown = acc.trim();
@@ -762,27 +828,9 @@ function hideSummaryActions() {
   els.shareBtn.disabled = true;
 }
 
-async function consumeSse(response, onDelta) {
-  const reader = response.body.getReader();
-  const dec = new TextDecoder();
-  let buf = '';
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const events = buf.split('\n\n');
-    buf = events.pop();
-    for (const ev of events) {
-      const lines = ev.split('\n');
-      const type = (lines.find((l) => l.startsWith('event:')) || '').slice(6).trim();
-      const dataLine = lines.find((l) => l.startsWith('data:'));
-      if (!dataLine) continue;
-      let data;
-      try { data = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
-      if (type === 'error') throw new Error(data.message || t('error.generic'));
-      if (data.delta) onDelta(data.delta);
-    }
-  }
+// Wortzahl der Quelle (für /api/build, identisch zur Server-Logik countWords).
+function wordCount(text = '') {
+  return String(text).trim().split(/\s+/).filter(Boolean).length;
 }
 
 /* ====================================================================== */
@@ -906,20 +954,16 @@ async function askQuestion(question) {
 
   let acc = '';
   try {
-    const r = await fetch(`${BACKEND}/api/qa`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(prefs.apiKey ? { 'X-Api-Key': prefs.apiKey } : {}) },
-      body: JSON.stringify({
-        text: page.text, summary: currentMarkdown, title: page.title, url: page.url, question,
-        history: qaHistory.slice(0, -1), zielsprache: targetLanguage(), plain: prefs.plain,
-      }),
+    await LLM.streamQa({
+      provider: prefs.provider, key: activeApiKey(), tier: prefs.modelTier, backend: BACKEND,
+      text: page.text, summary: currentMarkdown, title: page.title, url: page.url, question,
+      history: qaHistory.slice(0, -1), zielsprache: targetLanguage(), plain: prefs.plain,
       signal: qaAbort.signal,
-    });
-    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || t('error.backendError')); }
-    await consumeSse(r, (delta) => {
-      acc += delta;
-      msgEl.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
-      scrollResultToBottom();
+      onDelta: (delta) => {
+        acc += delta;
+        msgEl.innerHTML = renderMarkdown(acc) + '<span class="cursor"></span>';
+        scrollResultToBottom();
+      },
     });
     msgEl.innerHTML = renderMarkdown(acc);
     scrollResultToBottom();
@@ -1041,11 +1085,200 @@ els.zielsprache.addEventListener('change', () => { prefs.zielsprache = normalize
 els.plain.addEventListener('change', () => { prefs.plain = els.plain.checked; onSettingsChange({ refreshSummary: true }); });
 els.autoRun.addEventListener('change', () => { prefs.autoRun = els.autoRun.checked; onSettingsChange(); });
 els.donateBtn?.addEventListener('click', () => { chrome.tabs.create({ url: DONATION_URL }); });
-els.apiKeySaveBtn.addEventListener('click', () => {
-  prefs.apiKey = els.apiKeyInput.value.trim();
+els.alreadyDonatedBtn?.addEventListener('click', () => {
+  prefs.donated = true;
   savePrefs();
-  showToast(t('toast.apiKeySaved'));
+  applyDonated();
+  showToast(t('toast.donated'));
 });
+/* ====================================================================== */
+/* Anbieter-Status + Verbindungs-Assistent                                */
+/* ====================================================================== */
+
+function providerDisplayName(id) {
+  return id === 'free' ? t('provider.free.name') : t(`provider.${id}.name`);
+}
+function tierLabel(tier) {
+  const k = tier === 'fast' ? 'Fast' : tier === 'strong' ? 'Strong' : 'Balanced';
+  return t(`wizard.tier${k}`);
+}
+function updateProviderStatus() {
+  if (!els.providerStatus) return;
+  if (prefs.provider === 'free') {
+    els.providerStatus.textContent = t('settings.connectionFree');
+    els.connectBtn.textContent = t('settings.manageConnection');
+  } else {
+    els.providerStatus.textContent = `${providerDisplayName(prefs.provider)} · ${tierLabel(prefs.modelTier)}`;
+    els.connectBtn.textContent = t('settings.changeConnection');
+  }
+}
+
+let wizDraft = { provider: null, tier: 'balanced' }; // Auswahl im Assistenten (vor dem Speichern)
+
+let wizardReturnFocus = null;
+
+function openWizard() {
+  closeShareMenu();
+  wizardReturnFocus = document.activeElement; // Fokus später dorthin zurückgeben
+  wizDraft = { provider: null, tier: prefs.modelTier };
+  renderProviderCards();
+  showWizardStep(1);
+  els.wizardScrim.hidden = false;
+  els.wizard.hidden = false;
+  document.addEventListener('keydown', onWizardKey);
+  // Fokus in den Dialog holen (erste Anbieter-Karte, sonst Schließen-Button).
+  // Deferred, damit der Fokus des auslösenden Klicks nicht zuletzt gewinnt.
+  setTimeout(() => { (els.providerList.querySelector('.provider-card') || els.wizardClose).focus(); }, 0);
+}
+function closeWizard() {
+  els.wizard.hidden = true;
+  els.wizardScrim.hidden = true;
+  document.removeEventListener('keydown', onWizardKey);
+  const ret = wizardReturnFocus;
+  wizardReturnFocus = null;
+  if (ret && typeof ret.focus === 'function') setTimeout(() => ret.focus(), 0);
+}
+function onWizardKey(e) {
+  if (e.key === 'Escape') { e.stopPropagation(); closeWizard(); return; }
+  if (e.key === 'Tab') trapWizardFocus(e);
+}
+// Hält den Tastatur-Fokus innerhalb des Assistenten (Fokus-Falle für Modal-A11y).
+function trapWizardFocus(e) {
+  const all = els.wizard.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])');
+  const visible = [...all].filter((el) => !el.disabled && el.offsetParent !== null);
+  if (!visible.length) return;
+  const first = visible[0], last = visible[visible.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+function showWizardStep(n) {
+  els.wizardStep1.hidden = n !== 1;
+  els.wizardStep2.hidden = n !== 2;
+  els.wizardBack.hidden = n !== 2;
+}
+
+function renderProviderCards() {
+  const cards = [providerCard('free', t('provider.free.name'), t('provider.free.desc'), false, prefs.provider === 'free')];
+  for (const id of LLM.PROVIDERS) {
+    cards.push(providerCard(id, t(`provider.${id}.name`), t(`provider.${id}.desc`), LLM.META[id].free, prefs.provider === id));
+  }
+  els.providerList.innerHTML = cards.join('');
+}
+function providerCard(id, name, desc, isFree, active) {
+  const freeTag = isFree ? ` <span class="provider-free-tag">${escapeHtml(t('wizard.freeTag'))}</span>` : '';
+  const check = active ? '<span class="provider-card-check" aria-hidden="true">✓</span>' : '';
+  return `<button type="button" class="provider-card${active ? ' is-active' : ''}" data-provider="${escapeAttr(id)}">
+    <span class="provider-card-main">
+      <span class="provider-card-name">${escapeHtml(name)}${freeTag}</span>
+      <span class="provider-card-desc">${escapeHtml(desc)}</span>
+    </span>
+    ${check}
+    <svg class="provider-card-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>`;
+}
+
+els.providerList.addEventListener('click', (e) => {
+  const card = e.target.closest('[data-provider]');
+  if (!card) return;
+  const id = card.dataset.provider;
+  if (id === 'free') { applyConnection('free'); return; }
+  openProviderStep(id);
+});
+
+function openProviderStep(id) {
+  wizDraft.provider = id;
+  wizDraft.tier = LLM.TIERS.includes(prefs.modelTier) ? prefs.modelTier : 'balanced';
+  const meta = LLM.META[id];
+  els.wizProviderName.textContent = t(`provider.${id}.name`);
+  els.wizProviderBadge.hidden = !meta.free;
+  els.wizKeyHint.textContent = t(`provider.${id}.keyHint`);
+  els.wizKeyLink.href = meta.console;
+  els.wizKeyInput.placeholder = meta.placeholder;
+  els.wizKeyInput.value = prefs.apiKeys[id] || '';
+  setWizStatus('', null);
+  reflectWizTier();
+  showWizardStep(2);
+  setTimeout(() => els.wizKeyInput.focus(), 30);
+}
+
+function reflectWizTier() {
+  els.wizTierSeg.querySelectorAll('.seg-btn').forEach((b) => {
+    const on = b.dataset.tier === wizDraft.tier;
+    b.setAttribute('aria-checked', String(on));
+    b.classList.toggle('is-active', on);
+  });
+  els.wizModelId.textContent = LLM.modelFor(wizDraft.provider, wizDraft.tier) || '';
+}
+els.wizTierSeg.addEventListener('click', (e) => {
+  const b = e.target.closest('.seg-btn');
+  if (!b) return;
+  wizDraft.tier = b.dataset.tier;
+  reflectWizTier();
+});
+
+function setWizStatus(msg, ok) {
+  els.wizStatus.hidden = !msg;
+  els.wizStatus.textContent = msg || '';
+  els.wizStatus.className = 'wiz-status' + (ok === true ? ' is-ok' : ok === false ? ' is-err' : '');
+}
+
+els.wizTestBtn.addEventListener('click', async () => {
+  const key = els.wizKeyInput.value.trim();
+  if (!key) { setWizStatus(t('wizard.needKey'), false); return; }
+  els.wizTestBtn.disabled = true;
+  setWizStatus(t('wizard.testing'), null);
+  const res = await LLM.testKey(wizDraft.provider, key);
+  els.wizTestBtn.disabled = false;
+  setWizStatus(res.ok ? t('wizard.testOk') : (res.error || t('wizard.testFail')), res.ok);
+});
+
+els.wizSaveBtn.addEventListener('click', () => {
+  const key = els.wizKeyInput.value.trim();
+  if (!key) { setWizStatus(t('wizard.needKey'), false); return; }
+  applyConnection(wizDraft.provider, key, wizDraft.tier);
+});
+
+// Speichert die gewählte Verbindung, schließt den Assistenten und fasst ggf. neu zusammen.
+function applyConnection(provider, key, tier) {
+  const before = `${prefs.provider}:${activeApiKey()}:${prefs.modelTier}`;
+  prefs.provider = provider;
+  if (provider !== 'free') {
+    if (typeof key === 'string') prefs.apiKeys[provider] = key.trim();
+    if (LLM.TIERS.includes(tier)) prefs.modelTier = tier;
+  }
+  savePrefs();
+  updateProviderStatus();
+  closeWizard();
+  showToast(provider === 'free' ? t('wizard.switchedFree') : t('wizard.connected'));
+  // Während des Onboardings übernimmt dessen „Los geht's" den Start.
+  if (els.onboardingView && !els.onboardingView.hidden) return;
+  const after = `${prefs.provider}:${activeApiKey()}:${prefs.modelTier}`;
+  if (before !== after && page.url) summarize({ force: true });
+}
+
+els.connectBtn.addEventListener('click', openWizard);
+els.wizardClose.addEventListener('click', closeWizard);
+els.wizardScrim.addEventListener('click', closeWizard);
+els.wizardBack.addEventListener('click', () => { renderProviderCards(); showWizardStep(1); });
+
+/* ====================================================================== */
+/* Onboarding (Erststart)                                                 */
+/* ====================================================================== */
+
+function showOnboarding() {
+  els.mainView.hidden = true;
+  els.settingsPanel.hidden = true;
+  els.onboardingView.hidden = false;
+}
+function finishOnboarding(startSummary = true) {
+  if (!prefs.onboardingSeen) { prefs.onboardingSeen = true; savePrefs(); }
+  els.onboardingView.hidden = true;
+  els.mainView.hidden = false;
+  if (startSummary) bootMainView();
+}
+els.onboardingStart?.addEventListener('click', () => finishOnboarding(true));
+els.onboardingConnect?.addEventListener('click', openWizard);
+els.onboardingDonateBtn?.addEventListener('click', () => { chrome.tabs.create({ url: DONATION_URL }); });
 
 function setFontSize(size) {
   if (!FONT_SIZES.has(size) || size === prefs.fontSize) return;
@@ -1341,6 +1574,7 @@ function onSettingsKey(e) {
   if (e.key !== 'Escape') return;
   // Offene Dialoge fangen Escape zuerst ab – nicht die Einstellungen schließen.
   if (!els.confirmDialog.hidden) return;
+  if (!els.wizard.hidden) return;
   if (!els.focusDialog.hidden) { closeFocusDialog(); return; }
   closeSettings();
 }
@@ -1425,25 +1659,38 @@ async function startHotReload() {
 /* Start                                                                  */
 /* ====================================================================== */
 
+// Lädt die aktuelle Seite und zeigt/erstellt die Zusammenfassung (Hauptansicht).
+async function bootMainView() {
+  const { pendingSelection } = await chrome.storage.session.get('pendingSelection');
+  if (pendingSelection?.text && (Date.now() - (pendingSelection.ts || 0) < 15_000)) {
+    await consumePendingSelection();
+    return;
+  }
+  const ok = await loadCurrentPage();
+  if (!ok) return;
+  const key = cacheKey();
+  const cached = await cacheGet(key);
+  // Beim Öffnen des Side Panels immer zusammenfassen – unabhängig von
+  // "Automatisch aktualisieren" (das steuert nur den Tab-Wechsel).
+  if (cached?.markdown) { showSummary(cached.markdown, prefs.fokus, true); lastKey = key; }
+  else summarize();
+}
+
 (async function init() {
   await loadPrefs();
   document.documentElement.lang = currentUiLang();
   applyStaticI18n();
   reflectPrefs();
 
+  // Erststart → Onboarding zeigen. Eine über das Kontextmenü ausgelöste
+  // Auswahl überspringt das Onboarding (der Nutzer will sofort ein Ergebnis).
   const { pendingSelection } = await chrome.storage.session.get('pendingSelection');
-  if (pendingSelection?.text && (Date.now() - (pendingSelection.ts || 0) < 15_000)) {
-    await consumePendingSelection();
+  const hasSelection = pendingSelection?.text && (Date.now() - (pendingSelection.ts || 0) < 15_000);
+  if (!prefs.onboardingSeen && !hasSelection) {
+    showOnboarding();
   } else {
-    const ok = await loadCurrentPage();
-    if (ok) {
-      const key = cacheKey();
-      const cached = await cacheGet(key);
-      // Beim Öffnen des Side Panels immer zusammenfassen – unabhängig von
-      // "Automatisch aktualisieren" (das steuert nur den Tab-Wechsel).
-      if (cached?.markdown) { showSummary(cached.markdown, prefs.fokus, true); lastKey = key; }
-      else summarize();
-    }
+    if (!prefs.onboardingSeen) { prefs.onboardingSeen = true; savePrefs(); }
+    await bootMainView();
   }
   startHotReload();
 })();

@@ -31,11 +31,14 @@ node --check extension/sidepanel.js
 extension/    ← Chrome extension (client-side, no build step)
   manifest.json
   background.js     ← service worker: sidePanel setup, context menu, keyboard commands
-  sidepanel.html/js/css  ← side panel UI: compact controls, summary rendering, settings, Q&A, TTS
+  i18n.js           ← UI-language dictionary (loaded in panel + worker)
+  llm.js            ← provider abstraction + streaming (loaded after i18n.js, before sidepanel.js)
+  sidepanel.html/js/css  ← side panel UI: compact controls, summary rendering, settings, Q&A, TTS, onboarding, connection wizard
 
 server.js      ← Express backend (single file)
-  /api/summarize    ← SSE-streamed summarization
-  /api/qa           ← SSE-streamed Q&A about the page
+  /api/summarize    ← SSE-streamed summarization (free tier + video/PDF)
+  /api/qa           ← SSE-streamed Q&A about the page (free tier)
+  /api/build        ← renders prompts + token budget from metadata only (no page text, no key) for the BYOK direct path
   /api/health       ← health + current model info
   /api/version      ← file-change signatures for hot-reload
 
@@ -46,6 +49,21 @@ prompts/       ← Mustache prompt templates used by server.js
 ```
 
 The extension extracts page text by injecting `pageExtractor()` into the active tab via `chrome.scripting.executeScript`. For YouTube/PDF URLs, it sends only the URL to the backend (no text extraction). Selections from the context menu are routed via `chrome.storage.session`.
+
+## Provider model & BYOK (Hybrid)
+
+Summaries and Q&A run either on the free tier (Suntino's backend, 10/day per IP) or on the user's own API key. The provider model is a **Hybrid** chosen for privacy — see `extension/llm.js`:
+
+- `prefs.provider` ∈ `free | openrouter | google | openai | anthropic`; `prefs.apiKeys` holds one key per provider; `prefs.modelTier` ∈ `fast | balanced | strong`. The legacy single `prefs.apiKey` (always an OpenRouter key) migrates into `apiKeys.openrouter` in `loadPrefs()`.
+- **Routing** (in `llm.js`): no own key → backend (`/api/summarize`, `/api/qa`). Own key + text/Q&A → **streamed directly from the side panel to the provider** (key and page text never touch Suntino's server). Own key + video/PDF → backend (those need OpenRouter's `video_url`/`file-parser`; an OpenRouter key is passed through via `X-Api-Key`, other providers fall back to the free server key + daily limit).
+- For the direct path, prompts come from `/api/build` (metadata only — style, length, language, word count — never the page text), so prompt logic stays single-sourced in the backend while the content stays local. The client assembles the final messages locally (`llmWrapSource`, `llmQaSource`).
+- Two streaming formats: OpenAI-compatible (OpenRouter / Google via its `/v1beta/openai/` endpoint / OpenAI) and Anthropic-native Messages API (`x-api-key` + `anthropic-dangerous-direct-browser-access: true`). Per-provider model IDs and quirks (OpenAI uses `max_completion_tokens` and no custom `temperature`; Anthropic omits `temperature`) live in `LLM_MODELS`/`LLM_API`. CORS is bypassed because the side panel is an extension page with `host_permissions: https://*/*`.
+- Consumer subscriptions (ChatGPT Plus, Claude Pro, Gemini Advanced) have **no API access** — only API keys work. The connection wizard says so explicitly.
+
+## Onboarding & connection wizard
+
+- First launch shows `#onboardingView` (gated by `prefs.onboardingSeen` in `chrome.storage.local`); a context-menu selection skips it. "Los geht's" sets the flag and calls `bootMainView()`. Don't reintroduce the old dead-code state where the markup existed but nothing showed it.
+- The connection wizard (`#wizard`, kept top-level so it opens from both settings and onboarding) is a two-step modal: provider cards → key entry + `testKey()` + model-tier picker. `applyConnection()` persists and (outside onboarding) regenerates. The old settings `Eigener API-Key` row is gone — it's now the `#providerRow` ("KI-Anbieter") with a `#connectBtn` that opens the wizard.
 
 ## Side panel UX
 

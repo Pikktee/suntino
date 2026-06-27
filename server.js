@@ -231,6 +231,20 @@ function wrapSource(text) {
   return renderPrompt('partials/source.mustache', { text });
 }
 
+/** max_tokens-Sicherheitsgrenze (NICHT das Längenziel — das steckt im Prompt).
+ *  Identisch in /api/summarize (buildMessages) und /api/build genutzt. */
+function computeMaxTokens({ fokus, customFocus, lengthTarget }) {
+  const hasCustom = Boolean(String(customFocus || '').trim());
+  if (TABLE_FOCUS.has(fokus)) {
+    const rows = lengthTarget.maxRows || LENGTH.mittel.maxRows;
+    return Math.max(700, rows * 80 + 256);
+  }
+  if (hasCustom) {
+    return lengthTarget.maxWords ? Math.ceil(lengthTarget.maxWords * 5) + 256 : 2048;
+  }
+  return lengthTarget.maxWords ? Math.max(256, Math.ceil(lengthTarget.maxWords * 2.5) + 64) : 2048;
+}
+
 /* ====================================================================== */
 /* Routing: Text / YouTube / PDF                                          */
 /* ====================================================================== */
@@ -255,17 +269,7 @@ function buildMessages({ kind, text, url, title, length, fokus, customFocus, pla
   // großzügig bemessen (jede Zeile darf lange Kontext-Zellen haben), damit die
   // begrenzte Tabelle garantiert vollständig hineinpasst und nie mitten in einer
   // Zeile abgeschnitten wird. Custom-Stile können ebenfalls Tabellen anfordern.
-  const hasCustom = Boolean(String(customFocus || '').trim());
-  let maxTokens;
-  if (TABLE_FOCUS.has(fokus)) {
-    const rows = lengthTarget.maxRows || LENGTH.mittel.maxRows;
-    maxTokens = Math.max(700, rows * 80 + 256);
-  } else if (hasCustom) {
-    // Könnte eine Tabelle sein → großzügiger als reiner Fließtext.
-    maxTokens = lengthTarget.maxWords ? Math.ceil(lengthTarget.maxWords * 5) + 256 : 2048;
-  } else {
-    maxTokens = lengthTarget.maxWords ? Math.max(256, Math.ceil(lengthTarget.maxWords * 2.5) + 64) : 2048;
-  }
+  const maxTokens = computeMaxTokens({ fokus, customFocus, lengthTarget });
 
   if (kind === 'video') {
     return {
@@ -458,6 +462,45 @@ app.post('/api/qa', async (req, res) => {
     res.write(`event: error\ndata: ${JSON.stringify({ message: friendly(err) })}\n\n`);
     res.end();
   }
+});
+
+/* ====================================================================== */
+/* /api/build — Prompt-Baustein-Service für den BYOK-Direktpfad           */
+/* ----------------------------------------------------------------------  */
+/* Liefert die fertig gerenderten System-/Instruktions-Prompts + das       */
+/* Token-Budget aus reinen Metadaten (Stil, Länge, Sprache, Wortzahl) —    */
+/* OHNE Seitentext, OHNE Titel/URL, OHNE API-Key. Damit kann das Plugin    */
+/* mit dem eigenen Key direkt beim Anbieter streamen, während Prompts &     */
+/* Token-Logik EINE Quelle der Wahrheit bleiben (server-seitig).           */
+/* ====================================================================== */
+
+app.post('/api/build', (req, res) => {
+  const b = req.body || {};
+  const plain = Boolean(b.plain);
+  const zielsprache = LANG_NAMES[b.zielsprache] ? b.zielsprache : 'de';
+
+  if (b.mode === 'qa') {
+    const system = renderPrompt('qa/system.mustache', {
+      plainRules: plain ? plainClause() : '',
+      languageRules: langClause(zielsprache),
+    });
+    return res.json({ system, maxTokens: 2048 });
+  }
+
+  // mode === 'summarize' (Default)
+  const length = ['kurz', 'mittel', 'lang'].includes(b.length) ? b.length : 'mittel';
+  const customFocus = String(b.customFocus || '').trim().slice(0, 1800);
+  const fokus = BUILTIN_FOCUS.has(b.fokus) || customFocus ? b.fokus : 'ueberblick';
+  const kind = ['text', 'selection', 'video', 'pdf'].includes(b.kind) ? b.kind : 'text';
+  const sourceWords = Math.max(0, Math.min(2_000_000, parseInt(b.sourceWords, 10) || 0));
+
+  const system = buildSystem({ fokus, customFocus, plain, zielsprache });
+  const lengthTarget = lengthForSource(length, sourceWords, plain);
+  // Titel/URL bewusst leer: das Plugin hängt sie lokal an, sie verlassen den Rechner nicht.
+  const instruction = buildInstruction({ length, title: '', url: '', kind, sourceWords, plain });
+  const maxTokens = computeMaxTokens({ fokus, customFocus, lengthTarget });
+
+  res.json({ system, instruction, maxTokens, sourceSep: '\n\n---\n\n' });
 });
 
 /* ====================================================================== */
