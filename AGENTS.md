@@ -41,11 +41,17 @@ server.js      ← Express backend (single file)
   /api/build        ← renders prompts + token budget from metadata only (no page text, no key) for the BYOK direct path
   /api/health       ← health + current model info
   /api/version      ← file-change signatures for hot-reload
+  /                 ← landing page (served statically from site/)
+  /download         ← extension/ zipped on the fly → suntino-extension.zip (always current)
 
 prompts/       ← Mustache prompt templates used by server.js
   summary/     ← summarization system/instruction/style templates
   qa/          ← Q&A system/source templates
   partials/    ← shared language, plain-language, source wrappers
+
+site/          ← marketing landing page (static, served at /)
+  index.html   ← self-contained: inline CSS + SVG, side-panel mockup, download CTA
+  icon.svg / logo.png  ← favicon + Open-Graph image
 ```
 
 The extension extracts page text by injecting `pageExtractor()` into the active tab via `chrome.scripting.executeScript`. For YouTube/PDF URLs, it sends only the URL to the backend (no text extraction). Selections from the context menu are routed via `chrome.storage.session`.

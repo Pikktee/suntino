@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Suntino — Webseiten, Videos & PDFs klar & kurz zusammengefasst</title>
+<meta name="description" content="Suntino ist eine kostenlose Chrome-Erweiterung, die Webseiten, YouTube-Videos und PDFs im Seitenfenster automatisch zusammenfasst — mit Stil- und Längenwahl, über 35 Sprachen, Leichter Sprache, Vorlesen und Rückfragen." />
+<meta name="theme-color" content="#4f46e5" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<link rel="canonical" href="https://suntino.henrikheil.net/" />
+
+<!-- Open Graph / Social -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Suntino — Webseiten klar & kurz" />
+<meta property="og:description" content="Kostenlose Chrome-Erweiterung: Webseiten, YouTube-Videos und PDFs automatisch zusammenfassen — mit Stilwahl, über 35 Sprachen, Vorlesen und Rückfragen." />
+<meta property="og:url" content="https://suntino.henrikheil.net/" />
+<meta property="og:image" content="https://suntino.henrikheil.net/logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<style>
+  :root {
+    /* Tinten (OKLCH, identisch zur Extension) */
+    --ink:        oklch(0.23 0.02 275);
+    --ink-soft:   oklch(0.42 0.02 275);
+    --muted:      oklch(0.58 0.015 275);
+    --faint:      oklch(0.70 0.012 275);
+    --line:       oklch(0.92 0.008 275);
+    --line-soft:  oklch(0.955 0.006 275);
+    --surface:    oklch(1 0 0);
+    --surface-2:  oklch(0.985 0.004 275);
+    --surface-3:  oklch(0.965 0.006 275);
+
+    /* Akzent — warmes Indigo/Violett */
+    --accent:      oklch(0.55 0.20 285);
+    --accent-ink:  oklch(0.45 0.18 285);
+    --accent-soft: oklch(0.96 0.03 285);
+    --accent-line: oklch(0.80 0.10 285);
+
+    /* Marken-Hex (aus icon.svg / logo.svg) */
+    --brand-1: #6d5efc;
+    --brand-2: #4338ca;
+    --brand-deep: #312e81;
+    --spark: #fbbf24;
+    --indigo-200: #c7d2fe;
+    --indigo-300: #a5b4fc;
+
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 18px;
+    --r-xl: 26px;
+    --r-full: 999px;
+
+    --sh-sm: 0 1px 2px oklch(0.3 0.02 275 / 0.06), 0 1px 3px oklch(0.3 0.02 275 / 0.05);
+    --sh-md: 0 6px 18px oklch(0.3 0.02 275 / 0.08), 0 2px 5px oklch(0.3 0.02 275 / 0.05);
+    --sh-lg: 0 24px 60px oklch(0.30 0.05 285 / 0.18), 0 8px 20px oklch(0.3 0.02 275 / 0.08);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+    --maxw: 1120px;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--surface);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent-ink); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.1; margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  img, svg { max-width: 100%; }
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Hintergrund-Atmosphäre ---------- */
+  .bg-deco { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5; }
+  .blob-1 { top: -160px; right: -120px; width: 520px; height: 520px;
+    background: radial-gradient(circle at 30% 30%, var(--brand-1), transparent 70%); opacity: 0.30; }
+  .blob-2 { top: 220px; left: -180px; width: 460px; height: 460px;
+    background: radial-gradient(circle at 50% 50%, var(--spark), transparent 70%); opacity: 0.12; }
+  .blob-3 { bottom: -200px; right: -100px; width: 440px; height: 440px;
+    background: radial-gradient(circle at 50% 50%, var(--indigo-300), transparent 70%); opacity: 0.18; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px; justify-content: center;
+    font: inherit; font-weight: 650; font-size: 15px; cursor: pointer;
+    padding: 13px 22px; border-radius: var(--r-full); border: 1px solid transparent;
+    transition: transform .14s var(--ease-spring), box-shadow .18s, background .16s, border-color .16s, color .16s;
+    white-space: nowrap;
+  }
+  .btn svg { flex: none; }
+  .btn-primary {
+    color: #fff; border-color: transparent;
+    background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+    box-shadow: 0 8px 22px oklch(0.45 0.18 285 / 0.32);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px oklch(0.45 0.18 285 / 0.42); text-decoration: none; }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost {
+    color: var(--ink); background: var(--surface); border-color: var(--line);
+    box-shadow: var(--sh-sm);
+  }
+  .btn-ghost:hover { border-color: var(--accent-line); color: var(--accent-ink); background: var(--surface); text-decoration: none; transform: translateY(-1px); }
+  .btn-sm { padding: 9px 16px; font-size: 14px; }
+
+  /* ---------- Navigation ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+    background: color-mix(in oklch, var(--surface) 78%, transparent);
+    border-bottom: 1px solid transparent;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .nav.is-stuck { border-bottom-color: var(--line-soft); box-shadow: var(--sh-sm); }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: inline-flex; align-items: center; gap: 11px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 9px; flex: none; box-shadow: var(--sh-sm); }
+  .brand-name { font-size: 19px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); }
+  .brand-name b { color: var(--brand-2); font-weight: 800; }
+  .nav-links { display: flex; align-items: center; gap: 22px; }
+  .nav-links a.navlink { color: var(--ink-soft); font-weight: 550; font-size: 14.5px; }
+  .nav-links a.navlink:hover { color: var(--accent-ink); text-decoration: none; }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: clamp(40px, 7vw, 88px) 0 clamp(40px, 6vw, 72px); }
+  .hero-grid {
+    display: grid; grid-template-columns: 1.02fr 0.98fr; gap: clamp(28px, 5vw, 60px);
+    align-items: center;
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 650; color: var(--accent-ink);
+    background: var(--accent-soft); border: 1px solid var(--accent-line);
+    padding: 6px 13px; border-radius: var(--r-full); margin-bottom: 20px;
+  }
+  .eyebrow .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--spark); box-shadow: 0 0 0 3px oklch(0.85 0.16 85 / 0.3); }
+  .hero h1 { font-size: clamp(34px, 5.4vw, 56px); font-weight: 820; color: var(--ink); }
+  .hero h1 .grad {
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2) 60%, var(--accent-ink));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero-sub { margin: 22px 0 0; font-size: clamp(16px, 1.7vw, 18.5px); line-height: 1.55; color: var(--ink-soft); max-width: 30em; }
+  .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .trust { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 26px; }
+  .trust span { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--muted); font-weight: 500; }
+  .trust svg { color: var(--accent); flex: none; }
+
+  /* ---------- Produkt-Showcase (Browser + Side Panel) ---------- */
+  .showcase { perspective: 1600px; }
+  .browser {
+    border-radius: var(--r-lg); overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line);
+    box-shadow: var(--sh-lg);
+    transform: rotateY(-8deg) rotateX(3deg);
+    transform-origin: center right;
+    transition: transform .5s var(--ease-out);
+  }
+  .showcase:hover .browser { transform: rotateY(-3deg) rotateX(1deg); }
+  .browser-bar {
+    display: flex; align-items: center; gap: 8px; padding: 11px 14px;
+    background: var(--surface-2); border-bottom: 1px solid var(--line-soft);
+  }
+  .browser-bar .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .omnibox {
+    flex: 1; margin-left: 8px; height: 26px; border-radius: var(--r-full);
+    background: var(--surface); border: 1px solid var(--line);
+    display: flex; align-items: center; gap: 7px; padding: 0 12px;
+    font-size: 11.5px; color: var(--muted); overflow: hidden; white-space: nowrap;
+  }
+  .omnibox svg { color: var(--faint); flex: none; }
+  .browser-body { display: grid; grid-template-columns: 1fr 330px; min-height: 430px; }
+
+  /* angedeutete Webseite links */
+  .webpage { padding: 26px 26px 20px; background: var(--surface); display: flex; flex-direction: column; gap: 13px; }
+  .wp-kicker { width: 92px; height: 9px; border-radius: 5px; background: var(--indigo-300); opacity: .8; }
+  .wp-title { width: 86%; height: 19px; border-radius: 6px; background: var(--surface-3); }
+  .wp-title.short { width: 64%; }
+  .wp-img { width: 100%; height: 116px; border-radius: var(--r-md); margin: 6px 0;
+    background: linear-gradient(135deg, oklch(0.93 0.04 285), oklch(0.96 0.02 85)); }
+  .wp-line { height: 9px; border-radius: 5px; background: var(--surface-3); }
+  .wp-line.w95 { width: 95%; } .wp-line.w88 { width: 88%; } .wp-line.w70 { width: 70%; } .wp-line.w50 { width: 50%; }
+
+  /* Suntino Side Panel rechts */
+  .panel { background: var(--surface); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; }
+  .panel-strip { display: grid; grid-template-columns: 1fr auto 38px; gap: 7px; padding: 10px 11px; }
+  .p-select {
+    display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 5px 9px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0;
+  }
+  .p-select .lbl { font-size: 9px; font-weight: 800; letter-spacing: .06em; color: var(--faint); text-transform: uppercase; }
+  .p-select .val { font-size: 12.5px; font-weight: 650; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .p-select .chev { margin-left: auto; color: var(--faint); flex: none; }
+  .p-gear { display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); }
+  .panel-head { display: flex; gap: 9px; align-items: flex-start; padding: 11px 12px 9px; margin: 0 11px;
+    background: var(--surface-2); border: 1px solid var(--line-soft); border-bottom: none;
+    border-radius: 14px 14px 0 0; }
+  .p-fav { width: 19px; height: 19px; border-radius: 5px; flex: none; margin-top: 1px;
+    background: linear-gradient(135deg, #34d399, #059669); }
+  .p-src { min-width: 0; flex: 1; }
+  .p-src .t { font-size: 12px; font-weight: 650; color: var(--ink); line-height: 1.35; }
+  .p-src .m { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .p-actions { display: flex; gap: 4px; flex: none; }
+  .p-act { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid var(--line);
+    border-radius: 7px; color: var(--muted); background: var(--surface); }
+  .panel-body { flex: 1; padding: 12px; margin: 0 11px; border: 1px solid var(--line-soft); border-top: none;
+    border-radius: 0 0 14px 14px; overflow: hidden; }
+  .p-h2 { font-size: 13px; font-weight: 700; color: var(--ink); margin: 0 0 6px; }
+  .p-h2:not(:first-child) { margin-top: 13px; }
+  .p-p { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 9px; }
+  .p-ul { margin: 0; padding-left: 17px; display: flex; flex-direction: column; gap: 6px; }
+  .p-ul li { font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); }
+  .p-ul li::marker { color: var(--accent); }
+  .p-ul b { color: var(--ink); font-weight: 650; }
+  .panel-dock { display: flex; gap: 8px; padding: 10px 11px 12px; margin-top: auto; }
+  .p-input { flex: 1; min-width: 0; height: 34px; border-radius: var(--r-full); border: 1px solid var(--line);
+    background: var(--surface); display: flex; align-items: center; padding: 0 13px; font-size: 11.5px; color: var(--faint); }
+  .p-send { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent); color: #fff; }
+
+  /* ---------- Sektionen ---------- */
+  section { scroll-margin-top: 80px; }
+  .section { padding: clamp(48px, 7vw, 86px) 0; }
+  .section-head { text-align: center; max-width: 640px; margin: 0 auto clamp(34px, 5vw, 52px); }
+  .section-head .kick { font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .section-head h2 { font-size: clamp(26px, 3.6vw, 38px); font-weight: 800; color: var(--ink); margin: 12px 0 0; }
+  .section-head p { margin: 14px 0 0; font-size: 17px; color: var(--ink-soft); line-height: 1.55; }
+
+  /* Features */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feature {
+    padding: 26px 22px; border-radius: var(--r-lg); background: var(--surface);
+    border: 1px solid var(--line); box-shadow: var(--sh-sm);
+    transition: transform .2s var(--ease-out), box-shadow .2s, border-color .2s;
+  }
+  .feature:hover { transform: translateY(-4px); box-shadow: var(--sh-md); border-color: var(--accent-line); }
+  .feature .ficon {
+    width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent-soft), oklch(0.97 0.03 85));
+    color: var(--accent-ink); border: 1px solid var(--accent-line); margin-bottom: 16px;
+  }
+  .feature h3 { font-size: 17.5px; font-weight: 720; color: var(--ink); margin-bottom: 8px; }
+  .feature p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink-soft); }
+
+  /* How it works */
+  .how-wrap { background: linear-gradient(180deg, var(--surface-2), var(--surface)); border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: step; }
+  .step { position: relative; padding: 28px 22px 24px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); box-shadow: var(--sh-sm); }
+  .step .num {
+    counter-increment: step;
+    width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    font-weight: 800; font-size: 17px; color: #fff; margin-bottom: 15px;
+    background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+    box-shadow: 0 6px 14px oklch(0.45 0.18 285 / 0.3);
+  }
+  .step .num::before { content: counter(step); }
+  .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 7px; color: var(--ink); }
+  .step p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink-soft); }
+  .step code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+    background: var(--surface-3); padding: 1px 6px; border-radius: 5px; color: var(--accent-ink); }
+  .step kbd { font: inherit; font-size: 12px; font-weight: 650; background: var(--surface); border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; color: var(--ink-soft); }
+  .how-note { text-align: center; margin: 28px auto 0; max-width: 600px; font-size: 13.5px; color: var(--muted); }
+
+  /* Final CTA */
+  .cta {
+    text-align: center; border-radius: var(--r-xl); padding: clamp(40px, 6vw, 64px) 28px;
+    background:
+      radial-gradient(120% 140% at 50% -20%, oklch(0.55 0.20 285 / 0.10), transparent 60%),
+      linear-gradient(135deg, oklch(0.30 0.06 285), oklch(0.26 0.07 280));
+    color: #fff; position: relative; overflow: hidden;
+  }
+  .cta::after { content: ""; position: absolute; top: -40px; right: -20px; width: 220px; height: 220px;
+    background: radial-gradient(circle, var(--spark), transparent 70%); opacity: .14; pointer-events: none; }
+  .cta h2 { font-size: clamp(26px, 3.6vw, 38px); font-weight: 820; color: #fff; }
+  .cta p { margin: 14px auto 0; max-width: 32em; font-size: 17px; line-height: 1.55; color: oklch(0.9 0.02 285); }
+  .cta .btn-primary { margin-top: 28px; background: #fff; color: var(--brand-2); box-shadow: 0 10px 30px oklch(0.1 0.05 285 / 0.4); }
+  .cta .btn-primary:hover { background: #fff; color: var(--brand-2); }
+  .cta .cta-mini { margin-top: 14px; font-size: 13.5px; color: oklch(0.82 0.03 285); }
+
+  /* Footer */
+  footer { border-top: 1px solid var(--line); padding: 40px 0 48px; background: var(--surface-2); }
+  .foot-inner { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
+  .foot-brand { display: flex; align-items: center; gap: 11px; }
+  .foot-brand img { width: 30px; height: 30px; border-radius: 8px; }
+  .foot-brand .ft { font-size: 14px; color: var(--muted); }
+  .foot-brand .ft b { color: var(--ink); font-weight: 700; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  .foot-links a { color: var(--ink-soft); font-size: 14px; font-weight: 550; }
+  .foot-copy { width: 100%; margin-top: 8px; font-size: 12.5px; color: var(--faint); line-height: 1.6; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .showcase { margin-top: 8px; }
+    .browser { transform: none; }
+    .showcase:hover .browser { transform: none; }
+    .features, .steps { grid-template-columns: 1fr; }
+    .hero-sub { max-width: none; }
+  }
+  @media (max-width: 560px) {
+    .nav-links .navlink { display: none; }
+    .browser-body { grid-template-columns: 1fr; }
+    .webpage { display: none; }
+    .browser-body { min-height: 0; }
+    .btn { width: 100%; }
+    .hero-cta { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition-duration: .001ms !important; animation-duration: .001ms !important; }
+    .browser { transform: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-deco" aria-hidden="true">
+  <span class="blob blob-1"></span>
+  <span class="blob blob-2"></span>
+  <span class="blob blob-3"></span>
+</div>
+
+<!-- ============ Navigation ============ -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Suntino Startseite">
+      <svg class="brand-mark" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="nbTile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5efc"/><stop offset="1" stop-color="#4338ca"/></linearGradient>
+        </defs>
+        <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#nbTile)"/>
+        <g transform="rotate(-5 64 65)">
+          <rect x="37" y="29" width="54" height="72" rx="11" fill="#fff"/>
+          <circle cx="55" cy="52" r="4.2" fill="#312e81"/><circle cx="73" cy="52" r="4.2" fill="#312e81"/>
+          <path d="M53 61 Q64 71 75 61" fill="none" stroke="#312e81" stroke-width="4" stroke-linecap="round"/>
+          <rect x="46" y="82" width="36" height="5.5" rx="2.75" fill="#a5b4fc"/>
+          <rect x="46" y="91" width="22" height="5.5" rx="2.75" fill="#c7d2fe"/>
+        </g>
+        <g transform="translate(95 31)"><path d="M0 -13 C2 -4 4 -2 13 0 C4 2 2 4 0 13 C-2 4 -4 2 -13 0 C-4 -2 -2 -4 0 -13 Z" fill="#fbbf24"/></g>
+      </svg>
+      <span class="brand-name">Sun<b>tino</b></span>
+    </a>
+    <nav class="nav-links">
+      <a class="navlink" href="#features">Funktionen</a>
+      <a class="navlink" href="#install">Installieren</a>
+      <a class="btn btn-primary btn-sm" href="/download">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Herunterladen
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ============ Hero ============ -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow"><span class="pip"></span> Chrome-Erweiterung · 100 % kostenlos</span>
+      <h1>Webseiten, Videos &amp; PDFs — <span class="grad">klar &amp; kurz</span> zusammengefasst.</h1>
+      <p class="hero-sub">
+        Suntino öffnet sich im Seitenfenster von Chrome und fasst die aktuelle Seite
+        automatisch zusammen — mit wählbarem Stil und Länge, über 35 Sprachen,
+        Vorlesen und Rückfragen direkt zur Seite.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/download">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Für Chrome herunterladen
+        </a>
+        <a class="btn btn-ghost" href="#install">So funktioniert's</a>
+      </div>
+      <div class="trust">
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Ohne Anmeldung</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 10 Zusammenfassungen / Tag gratis</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Eigener Schlüssel ohne Limit</span>
+      </div>
+    </div>
+
+    <!-- Produkt-Showcase -->
+    <div class="showcase" aria-label="Vorschau des Suntino-Seitenfensters in Chrome" role="img">
+      <div class="browser">
+        <div class="browser-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <div class="omnibox">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            example.com/klimawandel-fakten-2026
+          </div>
+        </div>
+        <div class="browser-body">
+          <!-- angedeutete Webseite -->
+          <div class="webpage" aria-hidden="true">
+            <div class="wp-kicker"></div>
+            <div class="wp-title"></div>
+            <div class="wp-title short"></div>
+            <div class="wp-img"></div>
+            <div class="wp-line w95"></div>
+            <div class="wp-line w88"></div>
+            <div class="wp-line w95"></div>
+            <div class="wp-line w70"></div>
+            <div class="wp-line w88"></div>
+            <div class="wp-line w50"></div>
+          </div>
+          <!-- Suntino Side Panel -->
+          <aside class="panel">
+            <div class="panel-strip">
+              <div class="p-select"><span class="lbl">Stil</span><span class="val">Standard</span>
+                <svg class="chev" width="10" height="7" viewBox="0 0 12 8" aria-hidden="true"><path fill="currentColor" d="M1.4 0L6 4.6 10.6 0 12 1.4l-6 6-6-6z"/></svg></div>
+              <div class="p-select"><span class="lbl">Länge</span><span class="val">Mittel</span>
+                <svg class="chev" width="10" height="7" viewBox="0 0 12 8" aria-hidden="true"><path fill="currentColor" d="M1.4 0L6 4.6 10.6 0 12 1.4l-6 6-6-6z"/></svg></div>
+              <div class="p-gear"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+            </div>
+            <div class="panel-head">
+              <span class="p-fav"></span>
+              <div class="p-src">
+                <div class="t">Klimawandel: Die wichtigsten Fakten 2026</div>
+                <div class="m">example.com</div>
+              </div>
+              <div class="p-actions">
+                <span class="p-act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span>
+                <span class="p-act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+                <span class="p-act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></span>
+              </div>
+            </div>
+            <div class="panel-body">
+              <p class="p-h2">Worum es geht</p>
+              <p class="p-p">Der Artikel bündelt den aktuellen Forschungsstand zur globalen Erwärmung und ordnet Ursachen, Folgen und Gegenmaßnahmen ein.</p>
+              <p class="p-h2">Kernpunkte</p>
+              <ul class="p-ul">
+                <li>Die globale Temperatur ist seit 1850 um rund <b>1,2 °C</b> gestiegen.</li>
+                <li>Hauptursache sind <b>CO₂-Emissionen</b> aus fossilen Brennstoffen.</li>
+                <li>Erneuerbare decken bereits über <b>30 %</b> des Strombedarfs.</li>
+              </ul>
+            </div>
+            <div class="panel-dock">
+              <span class="p-input">Rückfrage zur Seite stellen …</span>
+              <span class="p-send"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Funktionen ============ -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kick">Funktionen</span>
+      <h2>Alles, um schneller durchs Web zu kommen</h2>
+      <p>Vom langen Artikel bis zum YouTube-Video — Suntino bringt jede Quelle auf den Punkt, genau so, wie du es brauchst.</p>
+    </div>
+    <div class="features">
+      <article class="feature">
+        <div class="ficon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></div>
+        <h3>Webseiten, Videos &amp; PDFs</h3>
+        <p>Artikel, YouTube-Videos und PDF-Dokumente werden gleichermaßen zusammengefasst — markierten Text fasst du per Rechtsklick zusammen.</p>
+      </article>
+      <article class="feature">
+        <div class="ficon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
+        <h3>Dein Stil, deine Länge</h3>
+        <p>Standard, „Zahlen &amp; Fakten" oder „Pro &amp; Contra" als Tabelle — in Kurz, Mittel oder Lang. Eigene Stile lassen sich frei anlegen.</p>
+      </article>
+      <article class="feature">
+        <div class="ficon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <h3>Über 35 Sprachen</h3>
+        <p>Lass dir jede Seite in deiner Sprache zusammenfassen — inklusive barrierefreier <b>Leichter Sprache</b> und anpassbarer Schriftgröße.</p>
+      </article>
+      <article class="feature">
+        <div class="ficon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <h3>Vorlesen &amp; Rückfragen</h3>
+        <p>Lass dir die Zusammenfassung vorlesen oder stelle direkt Rückfragen zur Seite — Suntino antwortet im Kontext des Inhalts.</p>
+      </article>
+      <article class="feature">
+        <div class="ficon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <h3>Privat by Design</h3>
+        <p>Mit eigenem Schlüssel (OpenRouter, Google, OpenAI, Anthropic) gehen Seitentext und Schlüssel <b>direkt</b> zum Anbieter — nie über unseren Server.</p>
+      </article>
+      <article class="feature">
+        <div class="ficon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <h3>Sofort startklar</h3>
+        <p>Kein Account, keine Einrichtung. Icon anklicken oder <kbd>Alt</kbd>+<kbd>S</kbd> drücken — das Seitenfenster fasst die Seite sofort zusammen.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Installieren ============ -->
+<div class="how-wrap">
+<section class="section" id="install">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kick">In 3 Schritten</span>
+      <h2>In einer Minute startklar</h2>
+      <p>Suntino wird als entpackte Erweiterung geladen — schnell erledigt und jederzeit aktualisierbar.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="num"></div>
+        <h3>Herunterladen</h3>
+        <p>ZIP über den Button laden und entpacken. Du erhältst einen Ordner <code>suntino-extension</code>.</p>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <h3>In Chrome laden</h3>
+        <p>Öffne <code>chrome://extensions</code>, aktiviere den <b>Entwicklermodus</b> (oben rechts) und klicke auf <b>„Entpackt laden"</b> → den entpackten Ordner wählen.</p>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <h3>Loslegen</h3>
+        <p>Auf einer beliebigen Seite das Suntino-Icon anklicken (oder <kbd>Alt</kbd>+<kbd>S</kbd>). Das Seitenfenster öffnet sich und fasst automatisch zusammen.</p>
+      </div>
+    </div>
+    <p class="how-note">Funktioniert in Chrome und allen Chromium-Browsern (Edge, Brave, Arc, Vivaldi …), die Manifest-V3-Erweiterungen unterstützen.</p>
+    <div style="text-align:center; margin-top: 30px;">
+      <a class="btn btn-primary" href="/download">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Suntino herunterladen
+      </a>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ============ Final CTA ============ -->
+<section class="section">
+  <div class="wrap">
+    <div class="cta">
+      <h2>Lange Seiten. Kurze Antworten.</h2>
+      <p>Hol dir Suntino und lies in Zukunft nur noch das, was zählt — in deiner Sprache, in deinem Stil.</p>
+      <a class="btn btn-primary" href="/download">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Für Chrome herunterladen
+      </a>
+      <p class="cta-mini">Kostenlos · Open für eigene API-Schlüssel · Keine Anmeldung</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ============ Footer ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-inner">
+      <div class="foot-brand">
+        <img src="/icon.svg" width="30" height="30" alt="" />
+        <span class="ft"><b>Suntino</b> — Webseiten klar &amp; kurz.</span>
+      </div>
+      <nav class="foot-links">
+        <a href="/download">Herunterladen</a>
+        <a href="#features">Funktionen</a>
+        <a href="#install">Installieren</a>
+        <a href="https://ko-fi.com/pikktee" target="_blank" rel="noopener">Unterstützen ☕</a>
+        <a href="/api/health" target="_blank" rel="noopener">Status</a>
+      </nav>
+    </div>
+    <p class="foot-copy">
+      Suntino ist und bleibt kostenlos. Ein freiwilliger Beitrag hilft, die KI- und Serverkosten zu decken.
+      © <span id="year">2026</span> Henrik Heil.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Navigationsleiste leicht hervorheben, sobald gescrollt wird
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('is-stuck', window.scrollY > 8);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+  // Jahr aktuell halten
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

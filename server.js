@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import Mustache from 'mustache';
 import OpenAI from 'openai';
+import archiver from 'archiver';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +31,7 @@ const HOTRELOAD = process.env.HOTRELOAD !== '0';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, 'extension');
 const PROMPT_DIR = join(__dirname, 'prompts');
+const SITE_DIR = join(__dirname, 'site');
 
 const hasKey = Boolean(process.env.OPENROUTER_API_KEY);
 const client = hasKey
@@ -81,6 +83,11 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
+/* ---------- Landingpage (statisch aus site/) ----------
+ * Liefert „/" → site/index.html sowie Assets (icon.svg, logo.png).
+ * /api/* und /download sind keine Dateien in site/ und fallen durch. */
+app.use(express.static(SITE_DIR));
 
 /* ====================================================================== */
 /* Prompt-Bausteine                                                       */
@@ -536,17 +543,24 @@ app.get('/api/health', (_req, res) =>
   res.json({ ok: true, model: MODEL, videoModel: VIDEO_MODEL, pdfModel: PDF_MODEL, longModel: LONG_MODEL, hasKey, hotreload: HOTRELOAD })
 );
 
-app.get('/', (_req, res) =>
-  res.type('html').send(
-    `<!doctype html><meta charset=utf-8><body style="font:15px system-ui;max-width:540px;margin:60px auto;padding:0 20px;color:#1a1a24">
-     <h2>Suntino — Backend</h2>
-     <p>Dieser Service ist das Backend für das Chrome-Plugin „Suntino". Er hat keine eigene Oberfläche.</p>
-     <p>Anbieter: <code>OpenRouter</code> · Standardmodell: <code>${MODEL}</code> · Video: <code>${VIDEO_MODEL}</code> · PDF: <code>${PDF_MODEL}</code> · Lang: <code>${LONG_MODEL}</code></p>
-     <p>API-Key: <b>${hasKey ? 'konfiguriert' : 'fehlt (.env anlegen)'}</b></p>
-     <p>Lade das Plugin in Chrome unter <code>chrome://extensions</code> → „Entpackt laden" aus dem Ordner <code>extension/</code>.</p>
-     </body>`
-  )
-);
+/* ---------- Download: Extension als ZIP (immer aktuell aus extension/) ----------
+ * Die Landingpage verlinkt /download. Wir zippen den extension/-Ordner zur
+ * Laufzeit, damit der Download stets der ausgelieferten Version entspricht.
+ * Inhalt landet unter suntino-extension/ — passt zur Installationsanleitung. */
+app.get('/download', (_req, res) => {
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="suntino-extension.zip"');
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  archive.on('warning', (err) => console.warn('zip warning:', err?.message));
+  archive.on('error', (err) => {
+    console.error('zip error:', err?.message);
+    if (!res.headersSent) res.status(500).type('text').send('ZIP konnte nicht erstellt werden.');
+    else res.destroy(err);
+  });
+  archive.pipe(res);
+  archive.directory(EXT_DIR, 'suntino-extension');
+  archive.finalize();
+});
 
 app.listen(PORT, () => {
   console.log(`\n  Backend läuft auf http://localhost:${PORT}`);
