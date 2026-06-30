@@ -86,8 +86,9 @@ app.use((req, res, next) => {
 
 /* ---------- Landingpage (statisch aus site/) ----------
  * Liefert „/" → site/index.html sowie Assets (icon.svg, logo.png).
- * /api/* und /download sind keine Dateien in site/ und fallen durch. */
-app.use(express.static(SITE_DIR));
+ * /api/* und /download sind keine Dateien in site/ und fallen durch.
+ * extensions:['html'] erlaubt saubere URLs ohne Endung (z. B. /impressum). */
+app.use(express.static(SITE_DIR, { extensions: ['html'] }));
 
 /* ====================================================================== */
 /* Prompt-Bausteine                                                       */

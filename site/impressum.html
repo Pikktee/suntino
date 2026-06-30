@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Impressum — Suntino</title>
+<meta name="description" content="Impressum und Anbieterkennzeichnung für Suntino." />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#4f46e5" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+<link rel="canonical" href="https://suntino.henrikheil.net/impressum" />
+<style>
+  :root {
+    --ink:        oklch(0.23 0.02 275);
+    --ink-soft:   oklch(0.42 0.02 275);
+    --muted:      oklch(0.58 0.015 275);
+    --faint:      oklch(0.70 0.012 275);
+    --line:       oklch(0.92 0.008 275);
+    --line-soft:  oklch(0.955 0.006 275);
+    --surface:    oklch(1 0 0);
+    --surface-2:  oklch(0.985 0.004 275);
+    --accent:      oklch(0.55 0.20 285);
+    --accent-ink:  oklch(0.45 0.18 285);
+    --accent-soft: oklch(0.96 0.03 285);
+    --accent-line: oklch(0.80 0.10 285);
+    --brand-1: #6d5efc;
+    --brand-2: #4338ca;
+    --spark: #fbbf24;
+    --indigo-300: #a5b4fc;
+    --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-full: 999px;
+    --sh-sm: 0 1px 2px oklch(0.3 0.02 275 / 0.06), 0 1px 3px oklch(0.3 0.02 275 / 0.05);
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body {
+    margin: 0; min-height: 100%;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--surface); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden;
+  }
+  a { color: var(--accent-ink); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .wrap { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px; }
+
+  .bg-deco { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(70px); }
+  .blob-1 { top: -160px; right: -120px; width: 460px; height: 460px;
+    background: radial-gradient(circle at 30% 30%, var(--brand-1), transparent 70%); opacity: 0.22; }
+  .blob-2 { bottom: -180px; left: -160px; width: 400px; height: 400px;
+    background: radial-gradient(circle at 50% 50%, var(--spark), transparent 70%); opacity: 0.10; }
+
+  /* Navigation */
+  .nav { border-bottom: 1px solid var(--line-soft); background: color-mix(in oklch, var(--surface) 80%, transparent); backdrop-filter: blur(12px); }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: inline-flex; align-items: center; gap: 11px; }
+  .brand:hover { text-decoration: none; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 9px; flex: none; box-shadow: var(--sh-sm); }
+  .brand-name { font-size: 19px; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); }
+  .brand-name b { color: var(--brand-2); }
+  .back-link { display: inline-flex; align-items: center; gap: 7px; font-size: 14.5px; font-weight: 600; color: var(--ink-soft); }
+  .back-link:hover { color: var(--accent-ink); text-decoration: none; }
+  .back-link svg { flex: none; }
+
+  /* Inhalt */
+  main { flex: 1; padding: clamp(40px, 7vw, 72px) 0 clamp(48px, 7vw, 80px); }
+  .page-head { margin-bottom: 36px; }
+  .page-head .kick { font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 820; letter-spacing: -0.02em; margin: 10px 0 0; color: var(--ink); }
+
+  .imprint {
+    border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-2);
+    box-shadow: var(--sh-sm); padding: clamp(22px, 4vw, 34px);
+  }
+  .imprint h2 { font-size: 13px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 8px; }
+  .imprint h2:not(:first-child) { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .imprint address { font-style: normal; font-size: 17px; line-height: 1.7; color: var(--ink); }
+  .imprint .name { font-weight: 700; }
+  .imprint a { font-weight: 600; }
+  .legal-note { margin: 24px 4px 0; font-size: 13px; line-height: 1.6; color: var(--muted); }
+
+  /* Footer */
+  footer { border-top: 1px solid var(--line); padding: 28px 0 36px; background: var(--surface-2); }
+  .foot-inner { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .foot-brand { display: flex; align-items: center; gap: 10px; }
+  .foot-brand img { width: 26px; height: 26px; border-radius: 7px; }
+  .foot-brand .ft { font-size: 13.5px; color: var(--muted); }
+  .foot-brand .ft b { color: var(--ink); font-weight: 700; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .foot-links a { color: var(--ink-soft); font-size: 14px; font-weight: 550; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="bg-deco" aria-hidden="true">
+  <span class="blob blob-1"></span>
+  <span class="blob blob-2"></span>
+</div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Zur Suntino Startseite">
+      <svg class="brand-mark" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs><linearGradient id="nbTile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5efc"/><stop offset="1" stop-color="#4338ca"/></linearGradient></defs>
+        <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#nbTile)"/>
+        <g transform="rotate(-5 64 65)">
+          <rect x="37" y="29" width="54" height="72" rx="11" fill="#fff"/>
+          <circle cx="55" cy="52" r="4.2" fill="#312e81"/><circle cx="73" cy="52" r="4.2" fill="#312e81"/>
+          <path d="M53 61 Q64 71 75 61" fill="none" stroke="#312e81" stroke-width="4" stroke-linecap="round"/>
+          <rect x="46" y="82" width="36" height="5.5" rx="2.75" fill="#a5b4fc"/>
+          <rect x="46" y="91" width="22" height="5.5" rx="2.75" fill="#c7d2fe"/>
+        </g>
+        <g transform="translate(95 31)"><path d="M0 -13 C2 -4 4 -2 13 0 C4 2 2 4 0 13 C-2 4 -4 2 -13 0 C-4 -2 -2 -4 0 -13 Z" fill="#fbbf24"/></g>
+      </svg>
+      <span class="brand-name">Sun<b>tino</b></span>
+    </a>
+    <a class="back-link" href="/">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Zurück zur Startseite
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <span class="kick">Rechtliches</span>
+      <h1>Impressum</h1>
+    </div>
+
+    <div class="imprint">
+      <h2>Angaben gemäß § 5 DDG</h2>
+      <address>
+        <span class="name">Henrik Heil</span><br>
+        Westendstr. 100<br>
+        60325 Frankfurt am Main
+      </address>
+
+      <h2>Kontakt</h2>
+      <address>
+        E-Mail: <a href="mailto:contact@henrikheil.net">contact@henrikheil.net</a>
+      </address>
+    </div>
+
+    <p class="legal-note">
+      Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV: Henrik Heil, Anschrift wie oben.
+    </p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div class="foot-brand">
+      <img src="/icon.svg" width="26" height="26" alt="" />
+      <span class="ft"><b>Suntino</b> — Webseiten klar &amp; kurz.</span>
+    </div>
+    <nav class="foot-links">
+      <a href="/">Startseite</a>
+      <a href="/download">Herunterladen</a>
+      <a href="https://ko-fi.com/pikktee" target="_blank" rel="noopener">Unterstützen ☕</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
